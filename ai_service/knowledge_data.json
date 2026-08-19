@@ -1,0 +1,113 @@
+[
+  {
+    "disease_name": "Tomato Late Blight",
+    "crop": "Tomato",
+    "english": {
+      "organic": [
+        "Spray Neem oil (5ml/L) + soap solution on upper and lower leaf surfaces.",
+        "Apply Trichoderma viride bio-agent formulation @ 10g/L water."
+      ],
+      "chemical": [
+        "Spray Metalaxyl 8% + Mancozeb 64% WP @ 2g/L water at first sign of disease.",
+        "Alternate with Copper Oxychloride 50 WP @ 3g/L to prevent fungicide resistance."
+      ],
+      "preventive": [
+        "Prune lower leaves touching soil to prevent fungal splash.",
+        "Avoid overhead sprinkler watering; use drip irrigation."
+      ],
+      "summary": "Late blight is caused by Phytophthora infestans. Immediate fungicide or bio-agent spray is crucial."
+    },
+    "malayalam": {
+      "organic": [
+        "ഇലകളുടെ ഇരുവശത്തും വേപ്പെണ്ണ മണ്ണെണ്ണ മിശ്രിതം (5 മില്ലി/ലിറ്റർ) തളിക്കുക.",
+        "ട്രൈക്കോഡെർമ വിരിഡെ ജൈവ കുമിൾനാശിനി (10 ഗ്രാം/ലിറ്റർ) തളിക്കുക."
+      ],
+      "chemical": [
+        "മെറ്റലാക്സിൽ + മാങ്കോസെബ് (2 ഗ്രാം/ലിറ്റർ) ആദ്യ രോഗലക്ഷണങ്ങളിൽ തന്നെ തളിക്കുക.",
+        "കോപ്പർ ഓക്സിക്ലോറൈഡ് (3 ഗ്രാം/ലിറ്റർ) മാറ്റി മാറ്റി ഉപയോഗിക്കുക."
+      ],
+      "preventive": [
+        "മണ്ണിൽ തട്ടുന്ന താഴത്തെ ഇലകൾ വെട്ടിമാറ്റുക.",
+        "ഇലകളിൽ വെള്ളം വീഴാതെ ചുവട്ടിൽ മാത്രം വെള്ളമൊഴിക്കുക."
+      ],
+      "summary": "തക്കാളിയിലെ വൈകി ഉണ്ടാകുന്ന തിരുമ്പ് രോഗം ഫൈറ്റോപ്തോറ മൂലം ഉണ്ടാകുന്നതാണ്. ഉടൻ പ്രതിരോധ തളി ആരംഭിക്കുക."
+    },
+    "sources": [
+      { "title": "Kerala Agricultural University Package of Practices (Tomato)", "url": "https://kau.in" },
+      { "title": "ICAR-IIHR Plant Disease Management Bulletin", "url": "https://iihr.res.in" }
+    ]
+  },
+  {
+    "disease_name": "Bacterial Leaf Spot",
+    "crop": "General",
+    "english": {
+      "organic": [
+        "Apply Pseudomonas fluorescens @ 10g/L as foliar spray.",
+        "Spray Garlic-Chilli extract solution as natural antibacterial shield."
+      ],
+      "chemical": [
+        "Spray Streptocycline @ 0.5g/L + Copper Oxychloride @ 2.5g/L.",
+        "Avoid spraying during high temperatures to prevent phytotoxicity."
+      ],
+      "preventive": [
+        "Use certified disease-free seeds and seedlings.",
+        "Maintain proper crop field sanitization after harvest."
+      ],
+      "summary": "Bacterial leaf spot causes dark water-soaked lesions. Copper-streptocycline spray helps control spread."
+    },
+    "malayalam": {
+      "organic": [
+        "സുഡോമോണാസ് ഫ്ലൂറസെൻസ് (10 ഗ്രാം/ലിറ്റർ) ഇലകളിൽ തളിക്കുക.",
+        "വെളുത്തുള്ളി കാന്താരി മുളക് സത്ത് തളിക്കുക."
+      ],
+      "chemical": [
+        "സ്ട്രെപ്റ്റോസൈക്ലിൻ (0.5 ഗ്രാം/ലിറ്റർ) + കോപ്പർ ഓക്സിക്ലോറൈഡ് (2.5 ഗ്രാം/ലിറ്റർ) തളിക്കുക."
+      ],
+      "preventive": [
+        "രോഗമില്ലാത്ത സാക്ഷ്യപ്പെടുത്തിയ വിത്തുകൾ മാത്രം ഉപയോഗിക്കുക.",
+        "തോട്ടം എപ്പോഴും വൃത്തിയായി സൂക്ഷിക്കുക."
+      ],
+      "summary": "ബാക്ടീരിയൽ ഇലപ്പുള്ളി രോഗം ഇലകളിൽ കറുത്ത പാടുകൾ ഉണ്ടാക്കുന്നു. കോപ്പർ ലായനി തളിക്കുന്നത് പ്രതിരോധിക്കും."
+    },
+    "sources": [
+      { "title": "KAU Advisory Guide on Bacterial Crop Diseases", "url": "https://kau.in" }
+    ]
+  },
+  {
+    "disease_name": "Paddy Bacterial Leaf Blight",
+    "crop": "Paddy",
+    "english": {
+      "organic": [
+        "Spray fresh cow dung slurry supernatant (20%) + Neem kernel extract (5%).",
+        "Apply Pseudomonas fluorescens seed and seedling dip."
+      ],
+      "chemical": [
+        "Spray Plantomycin @ 1g/L + Copper Hydroxide @ 2g/L.",
+        "Reduce excessive Nitrogen fertilizer application."
+      ],
+      "preventive": [
+        "Grow resistant rice cultivars like Jyothi, Uma, or Shreyas.",
+        "Drain field water for 3-4 days if disease spreads rapidly."
+      ],
+      "summary": "Xanthomonas oryzae causes yellow-wavy margins on paddy leaves. Nitrogen management is vital."
+    },
+    "malayalam": {
+      "organic": [
+        "20% പച്ചച്ചാണക ലായനിയുടെ തെളി തളിക്കുക.",
+        "സുഡോമോണാസ് ലായനിയിൽ നെൽവിത്തുകൾ കുതിർത്ത് മുളപ്പിക്കുക."
+      ],
+      "chemical": [
+        "പ്ലാന്റോമൈസിൻ (1 ഗ്രാം/ലിറ്റർ) + കോപ്പർ ഹൈഡ്രോക്സൈഡ് (2 ഗ്രാം/ലിറ്റർ) തളിക്കുക.",
+        "നൈട്രജൻ (യൂറിയ) വളങ്ങളുടെ അളവ് കുറയ്ക്കുക."
+      ],
+      "preventive": [
+        "ജ്യോതി, ഉമ തുടങ്ങിയ രോഗപ്രതിരോധ ശേഷിയുള്ള നെൽവിനങ്ങൾ കൃഷി ചെയ്യുക.",
+        "രോഗം പടരുമ്പോൾ പാടത്തെ വെള്ളം വറ്റിച്ചു നിർത്തി വെയിൽ കൊള്ളിക്കുക."
+      ],
+      "summary": "നെല്ലിലെ ബാക്ടീരിയൽ ഓലകരിച്ചിൽ ഇലകളുടെ അരികുകൾ മഞ്ഞളിക്കാൻ ഇടയാക്കുന്നു. യൂറിയയുടെ അളവ് ക്രമീകരിക്കുക."
+    },
+    "sources": [
+      { "title": "Kerala Rice Knowledge Management Portal", "url": "https://rkmp.kau.in" }
+    ]
+  }
+]
