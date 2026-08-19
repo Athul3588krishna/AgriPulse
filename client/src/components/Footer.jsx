@@ -13,7 +13,6 @@ export const Footer = () => {
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
             AI-Powered Precision Agriculture and Crop Disease Advisory System.
-            MCA Final Year Main Project (2026–2027).
           </p>
         </div>
 
@@ -42,7 +41,7 @@ export const Footer = () => {
 
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 pt-6 border-t border-slate-800 text-center text-xs text-slate-500">
-        © 2026 AgriPulse AI. Built for MCA Final Year Main Project.
+        © 2026 AgriPulse AI. All rights reserved.
       </div>
     </footer>
   );

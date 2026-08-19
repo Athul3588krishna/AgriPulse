@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'agripulse_secret_key_2026_mca_project';
+const JWT_SECRET = process.env.JWT_SECRET || 'agripulse_secret_key_prod_2026';
 
 // Register User
 router.post('/register', async (req, res) => {

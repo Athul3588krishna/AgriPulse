@@ -15,7 +15,7 @@ export const HomePage = () => {
         <div className="lg:col-span-7 space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100/80 border border-emerald-300 text-emerald-900 text-xs font-bold">
             <Sparkles className="w-4 h-4 text-emerald-600" />
-            <span>MCA Final Year Main Project (2026–2027)</span>
+            <span>AI Precision Agriculture Platform</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
