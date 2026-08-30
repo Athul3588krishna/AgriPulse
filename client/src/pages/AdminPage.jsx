@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
-import { Shield, Users, Activity, AlertTriangle, Database, Plus, BookOpen } from 'lucide-react';
+import { Shield, Users, Activity, AlertTriangle, Database, Plus, BookOpen, Search, UserCheck } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 const COLORS = ['#16a34a', '#d97706', '#dc2626', '#2563eb', '#9333ea'];
@@ -10,6 +10,8 @@ export const AdminPage = () => {
   const { t } = useLanguage();
   const [stats, setStats] = useState(null);
   const [kbList, setKbList] = useState([]);
+  const [usersList, setUsersList] = useState([]);
+  const [userSearch, setUserSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
   const [kbForm, setKbForm] = useState({
@@ -24,12 +26,14 @@ export const AdminPage = () => {
 
   const fetchAdminData = async () => {
     try {
-      const [statsRes, kbRes] = await Promise.all([
+      const [statsRes, kbRes, usersRes] = await Promise.all([
         axios.get('/api/admin/stats'),
-        axios.get('/api/admin/kb')
+        axios.get('/api/admin/kb'),
+        axios.get('/api/admin/users').catch(() => ({ data: [] }))
       ]);
       setStats(statsRes.data);
       setKbList(kbRes.data);
+      setUsersList(usersRes.data);
     } catch (e) {
       console.log('Admin stats fetch notice:', e.message);
     } finally {
@@ -79,6 +83,10 @@ export const AdminPage = () => {
     { month: 'May', scans: 85 }
   ];
 
+  const filteredUsers = usersList.filter(
+    (u) => u.name?.toLowerCase().includes(userSearch.toLowerCase()) || u.email?.toLowerCase().includes(userSearch.toLowerCase())
+  );
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 space-y-8">
       
@@ -88,7 +96,7 @@ export const AdminPage = () => {
             System Administration
           </span>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-2">{t('admin')} Console</h1>
-          <p className="text-xs text-slate-500">System metrics, RAG knowledge base management, and user activity</p>
+          <p className="text-xs text-slate-500">System metrics, user management, and RAG knowledge base administration</p>
         </div>
       </div>
 
@@ -110,7 +118,7 @@ export const AdminPage = () => {
           </div>
           <div>
             <span className="text-xs text-slate-500 font-bold block">Registered Farmers</span>
-            <span className="text-2xl font-extrabold text-slate-900">{stats?.totalUsers ?? 42}</span>
+            <span className="text-2xl font-extrabold text-slate-900">{stats?.totalUsers ?? usersList.length ?? 42}</span>
           </div>
         </div>
 
@@ -161,6 +169,64 @@ export const AdminPage = () => {
 
       </div>
 
+      {/* Registered Farmers & User Directory Table */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+            <UserCheck className="w-5 h-5 text-emerald-600" />
+            {t('userDirectory')} ({filteredUsers.length})
+          </h3>
+
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              placeholder="Search by name or email..."
+              className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+        </div>
+
+        {filteredUsers.length === 0 ? (
+          <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+            No registered users found matching "{userSearch}".
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider">
+                <tr>
+                  <th className="p-3 rounded-l-xl">User Name</th>
+                  <th className="p-3">Email Address</th>
+                  <th className="p-3">Role</th>
+                  <th className="p-3">Language</th>
+                  <th className="p-3 rounded-r-xl">Registered Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                {filteredUsers.map((u) => (
+                  <tr key={u._id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-3 font-bold text-slate-900">{u.name}</td>
+                    <td className="p-3 text-slate-600">{u.email}</td>
+                    <td className="p-3">
+                      <span className={`px-2.5 py-0.5 rounded font-bold text-[10px] uppercase ${
+                        u.role === 'admin' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="p-3 uppercase text-[10px] font-bold text-slate-500">{u.language || 'en'}</td>
+                    <td className="p-3 text-slate-500">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* RAG Knowledge Base Uploader */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
         <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
@@ -177,7 +243,7 @@ export const AdminPage = () => {
                 required
                 value={kbForm.title}
                 onChange={(e) => setKbForm({ ...kbForm, title: e.target.value })}
-                placeholder="e.g. KAU Late Blight Management 2026"
+                placeholder="e.g. KAU Late Blight Management Guide"
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
               />
             </div>

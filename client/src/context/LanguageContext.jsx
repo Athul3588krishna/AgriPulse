@@ -28,6 +28,10 @@ export const dictionary = {
     sources: 'Verified Agricultural References',
     readAloud: 'Read Advisory Aloud (Voice)',
     stopAudio: 'Stop Voice',
+    startListening: 'Speak Input (Mic)',
+    listeningActive: 'Listening... (Speak Now)',
+    downloadPdf: 'Download PDF Advisory Report',
+    userDirectory: 'Registered Farmers & User Directory',
     langSwitch: 'മലയാളം'
   },
   ml: {
@@ -55,6 +59,10 @@ export const dictionary = {
     sources: 'അംഗീകൃത കാർഷിക സ്രോതസ്സുകൾ',
     readAloud: 'ശബ്ദത്തിൽ കേൾക്കുക (Voice)',
     stopAudio: 'ശബ്ദം നിർത്തുക',
+    startListening: 'ശബ്ദത്തിൽ സംസാരിക്കുക (Mic)',
+    listeningActive: 'ശ്രദ്ധിക്കുന്നു... (സംസാരിക്കുക)',
+    downloadPdf: 'PDF ഉപദേശ റിപ്പോർട്ട് ഡൗൺലോഡ് ചെയ്യുക',
+    userDirectory: 'രജിസ്റ്റർ ചെയ്ത കർഷകരുടെ വിവരങ്ങൾ',
     langSwitch: 'English'
   }
 };
@@ -62,6 +70,7 @@ export const dictionary = {
 export const LanguageProvider = ({ children }) => {
   const [lang, setLang] = useState('en');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
   const toggleLanguage = () => {
     setLang((prev) => (prev === 'en' ? 'ml' : 'en'));
@@ -69,6 +78,7 @@ export const LanguageProvider = ({ children }) => {
 
   const t = (key) => dictionary[lang]?.[key] || key;
 
+  // Text-To-Speech (TTS)
   const speakText = (text) => {
     if (!('speechSynthesis' in window)) {
       alert('Speech synthesis is not supported in your browser.');
@@ -99,8 +109,37 @@ export const LanguageProvider = ({ children }) => {
     }
   };
 
+  // Speech-To-Text (STT) Voice Microphone Input
+  const startListening = (onResultCallback) => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in your browser. Try Chrome/Edge.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = lang === 'ml' ? 'ml-IN' : 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      if (onResultCallback) onResultCallback(transcript);
+    };
+
+    recognition.start();
+  };
+
   return (
-    <LanguageContext.Provider value={{ lang, setLang, toggleLanguage, t, speakText, stopSpeaking, isSpeaking }}>
+    <LanguageContext.Provider value={{
+      lang, setLang, toggleLanguage, t,
+      speakText, stopSpeaking, isSpeaking,
+      startListening, isListening
+    }}>
       {children}
     </LanguageContext.Provider>
   );

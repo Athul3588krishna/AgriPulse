@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Production build outputs
+dist/
+**/dist/
+
+# Uploads and temporary media
+uploads/
+**/uploads/
+*.log
+*.tmp
+
+# Environment variables
+.env
+**/.env
+
+# Python cached files
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# IDE and System files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

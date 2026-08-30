@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { useLanguage } from '../context/LanguageContext';
-import { Leaf, Upload, Volume2, VolumeX, CheckCircle, AlertTriangle, CloudSun, Shield, FileText, Sparkles, RefreshCw } from 'lucide-react';
+import { Leaf, Upload, Volume2, VolumeX, Mic, MicOff, Download, CheckCircle, AlertTriangle, CloudSun, Shield, FileText, Sparkles, RefreshCw } from 'lucide-react';
 
 export const DiagnosisPage = () => {
-  const { t, lang, speakText, stopSpeaking, isSpeaking } = useLanguage();
+  const { t, lang, speakText, stopSpeaking, isSpeaking, startListening, isListening } = useLanguage();
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -13,8 +15,11 @@ export const DiagnosisPage = () => {
   const [selectedPlot, setSelectedPlot] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+
+  const reportRef = useRef(null);
 
   useEffect(() => {
     axios.get('/api/plots').then((res) => setPlots(res.data)).catch(() => {});
@@ -66,6 +71,38 @@ export const DiagnosisPage = () => {
     speakText(textToRead);
   };
 
+  const handleMicInput = () => {
+    startListening((transcript) => {
+      console.log('Voice transcript:', transcript);
+      if (transcript.toLowerCase().includes('paddy') || transcript.includes('നെല്ല്')) setCropName('Paddy');
+      else if (transcript.toLowerCase().includes('potato') || transcript.includes('ഉരുളക്കിഴങ്ങ്')) setCropName('Potato');
+      else if (transcript.toLowerCase().includes('corn') || transcript.includes('ചോളം')) setCropName('Corn');
+      else if (transcript.toLowerCase().includes('chilli') || transcript.includes('മുളക്')) setCropName('Chilli');
+      else if (transcript.toLowerCase().includes('tomato') || transcript.includes('തക്കാളി')) setCropName('Tomato');
+    });
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!reportRef.current || !result) return;
+    setDownloadingPdf(true);
+    try {
+      const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`AgriPulse_Diagnosis_${result.diseaseName.replace(/\s+/g, '_')}.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      alert('Could not export PDF. Please try again.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 space-y-8">
       
@@ -86,7 +123,23 @@ export const DiagnosisPage = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">{t('selectCrop')}</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-bold text-slate-700">{t('selectCrop')}</label>
+                <button
+                  type="button"
+                  onClick={handleMicInput}
+                  className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg border transition-all ${
+                    isListening
+                      ? 'bg-red-500 text-white animate-pulse border-red-600'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  }`}
+                  title="Speak to select crop"
+                >
+                  {isListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3 text-emerald-600" />}
+                  <span>{isListening ? t('listeningActive') : t('startListening')}</span>
+                </button>
+              </div>
+
               <select
                 value={cropName}
                 onChange={(e) => setCropName(e.target.value)}
@@ -170,9 +223,9 @@ export const DiagnosisPage = () => {
 
       {/* Diagnosis Report Output */}
       {result && (
-        <div className="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200 space-y-8 animate-fade-in">
+        <div ref={reportRef} className="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200 space-y-8 animate-fade-in">
           
-          {/* Top Bar: Disease Name, Severity Gauge & Voice Button */}
+          {/* Top Bar: Disease Name, Severity Gauge & Voice/PDF Actions */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
             <div>
               <span className="text-emerald-700 text-xs font-extrabold uppercase tracking-wider bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
@@ -182,7 +235,7 @@ export const DiagnosisPage = () => {
               <p className="text-xs text-slate-500">Crop: {result.cropName} • Analysis Time: Just Now</p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={handleVoiceReadout}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
@@ -191,6 +244,15 @@ export const DiagnosisPage = () => {
               >
                 {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                 <span>{isSpeaking ? t('stopAudio') : t('readAloud')}</span>
+              </button>
+
+              <button
+                onClick={handleDownloadPdf}
+                disabled={downloadingPdf}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all disabled:opacity-50"
+              >
+                <Download className="w-4 h-4 text-emerald-400" />
+                <span>{downloadingPdf ? 'Generating PDF...' : t('downloadPdf')}</span>
               </button>
             </div>
           </div>
