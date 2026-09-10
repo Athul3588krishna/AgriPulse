@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useLanguage } from '../context/LanguageContext';
-import { Leaf, Upload, Volume2, VolumeX, Mic, MicOff, Download, CheckCircle, AlertTriangle, CloudSun, Shield, FileText, Sparkles, RefreshCw } from 'lucide-react';
+import { Leaf, Upload, Volume2, VolumeX, Mic, MicOff, Download, CheckCircle, AlertTriangle, CloudSun, Shield, FileText, Sparkles, RefreshCw, Landmark, ArrowRight } from 'lucide-react';
 
 export const DiagnosisPage = () => {
   const { t, lang, speakText, stopSpeaking, isSpeaking, startListening, isListening } = useLanguage();
@@ -281,6 +282,36 @@ export const DiagnosisPage = () => {
               <span className="text-[10px] text-slate-400">Open-Meteo Weather Check</span>
             </div>
           </div>
+
+          {/* PMFBY Digital Insurance Claim Direct Link (If Severity > 20%) */}
+          {result.severityPercentage > 20 && (
+            <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-700/60 rounded-xl mt-0.5">
+                  <Landmark className="w-5 h-5 text-blue-200" />
+                </div>
+                <div>
+                  <span className="text-xs font-black text-amber-300 uppercase tracking-wider block">
+                    PMFBY Crop Loss Insurance Claim Eligible
+                  </span>
+                  <p className="text-xs text-blue-100 mt-0.5 max-w-xl">
+                    {lang === 'ml'
+                      ? `ഇലയിലെ രോഗബാധ ${result.severityPercentage}% രേഖപ്പെടുത്തിയതിനാൽ ഈ സ്കാൻ തെളിവായി ഉപയോഗിച്ച് PMFBY നഷ്ടപരിഹാരത്തിന് അപേക്ഷിക്കാം.`
+                      : `Lesion severity of ${result.severityPercentage}% meets threshold for PMFBY compensation. Your digital OpenCV verification acts as valid claim evidence.`
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to="/subsidies"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black bg-blue-500 hover:bg-blue-400 text-slate-950 shadow-md transition-all shrink-0"
+              >
+                <span>File PMFBY Claim</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          )}
 
           {/* RAG Contextual Advisory Section */}
           <div className="space-y-6">

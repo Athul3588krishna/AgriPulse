@@ -9,6 +9,8 @@ const plotRoutes = require('./routes/plotRoutes');
 const diagnosisRoutes = require('./routes/diagnosisRoutes');
 const weatherRoutes = require('./routes/weatherRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const mandiRoutes = require('./routes/mandiRoutes');
+const subsidyRoutes = require('./routes/subsidyRoutes');
 
 const app = express();
 
@@ -26,12 +28,20 @@ app.use('/api/plots', plotRoutes);
 app.use('/api/diagnoses', diagnosisRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/mandi', mandiRoutes);
+app.use('/api/subsidies', subsidyRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
-    system: 'AgriPulse AI Express API Gateway',
+    system: 'AgriMitra 360 Express API Gateway',
+    pillars: [
+      'Pillar 1: Pre-Harvest Precision Agronomy & Disease Diagnostics',
+      'Pillar 2: Post-Harvest Market Intelligence & Mandi Optimization',
+      'Pillar 3: Autonomous Financial & Subsidy Navigator',
+      'Pillar 4: Omnipresent Vernacular Voice Agent'
+    ],
     time: new Date().toISOString()
   });
 });
@@ -45,12 +55,12 @@ mongoose
   .then(() => {
     console.log('✅ Connected to MongoDB successfully.');
     app.listen(PORT, () => {
-      console.log(`🚀 AgriPulse Server listening on port ${PORT}`);
+      console.log(`🚀 AgriMitra 360 Server listening on port ${PORT}`);
     });
   })
   .catch((err) => {
     console.log('⚠️ Mongo Connection Error, starting standalone Express API:', err.message);
     app.listen(PORT, () => {
-      console.log(`🚀 AgriPulse Server running in standalone mode on port ${PORT}`);
+      console.log(`🚀 AgriMitra 360 Server running in standalone mode on port ${PORT}`);
     });
   });

@@ -1,6 +1,6 @@
-# AgriPulse AI: An AI-Powered Precision Agriculture and Crop Disease Advisory System
+# AgriMitra 360: An End-to-End Multimodal AI Platform for Precision Agronomy, Dynamic Market Intelligence, and Autonomous Subsidy Navigation
 
-![AgriPulse AI Banner](https://img.shields.io/badge/AgriPulse%20AI-Precision%20Agriculture-15803d?style=for-the-badge&logo=leaflet)
+![AgriMitra 360 Banner](https://img.shields.io/badge/AgriMitra%20360-Precision%20Agronomy%20&%20Mandi%20AI-15803d?style=for-the-badge&logo=leaflet)
 ![Python](https://img.shields.io/badge/FastAPI-Python_3.14-blue?style=for-the-badge&logo=fastapi)
 ![Node.js](https://img.shields.io/badge/Node.js-Express_API-green?style=for-the-badge&logo=nodedotjs)
 ![React](https://img.shields.io/badge/React_18-Vite_Tailwind-61DAFB?style=for-the-badge&logo=react)
@@ -8,23 +8,66 @@
 
 ---
 
-## 📌 Abstract
+## 📌 Project Abstract
 
-Agriculture is highly vulnerable to crop diseases and changing weather conditions, which can significantly affect crop productivity and farmers' income. **AgriPulse AI** is an intelligent precision agriculture and crop disease advisory platform combining **Computer Vision (EfficientNet)**, **OpenCV Severity Estimation**, **Retrieval-Augmented Generation (RAG)**, **Real-Time Weather Integration**, and **Multilingual (English & Malayalam) Text/Voice Assistance**.
+Agriculture remains the backbone of the economy, yet smallholder farmers face severe systemic bottlenecks across the entire farming lifecycle: delayed crop disease diagnosis, exploitation by middlemen due to lack of transparent market intelligence, and near-zero accessibility to crucial government subsidies and crop insurance schemes. Existing digital solutions operate in silos—offering isolated tools that demand high digital literacy and fluency in English, alienating the majority of rural cultivators.
 
-Farmers can upload images of affected plant leaves through a web application. The deep learning model identifies probable diseases with a confidence score, while OpenCV estimates the affected leaf area percentage. The RAG advisory engine retrieves verified guidelines from agricultural institutions (such as KAU/ICAR) and incorporates live weather data (temperature, humidity, rain probability, wind) to generate weather-aware, responsible crop management advice.
+To bridge this critical divide, **AgriMitra 360** introduces an integrated, voice-first, multimodal AI ecosystem tailored for the complete agricultural journey. The platform converges three foundational pillars powered by modern Artificial Intelligence:
+
+1. **Pre-Harvest Agronomy & Disease Diagnostics**: Utilizing Computer Vision (PyTorch & OpenCV) and Multimodal AI, farmers capture real-time images of affected crop foliage. The system instantly detects pathogen strains, quantifies infestation severity percentage via HSV color segmentation, and recommends localized organic and chemical remediation from Kerala Agricultural University (KAU) / ICAR, reinforced by real-time meteorological risk modeling via Open-Meteo.
+2. **Post-Harvest Market Intelligence & Mandi Optimization**: Leveraging predictive market modeling and real-time Mandi price feeds (Agmarknet), the dynamic pricing engine calculates net yield valuation, forecasts 7-day price volatility trends, and advises farmers on the most lucrative regional markets to bypass middleman margins.
+3. **Autonomous Financial & Subsidy Navigator**: Integrating Retrieval-Augmented Generation (RAG) over state and central agricultural policies (e.g., PMFBY, PM-KISAN, Subhiksha Keralam, Soil Health Cards), the platform automatically maps farm credentials to eligible benefits and provides automated application guidance with digital damage proof.
+
+The cornerstone of the platform is an **Omnipresent Vernacular Voice Agent**, enabling zero-touch speech-to-speech interaction in native regional languages (including **Malayalam** and **English**), breaking all literacy barriers.
+
+**Keywords**: *Multimodal AI, Computer Vision, Precision Agriculture, Gemini 1.5, Mandi Price Prediction, Retrieval-Augmented Generation (RAG), Vernacular Voice Interface, Agricultural Economics.*
 
 ---
 
-## ✨ Key Features
+## 🏛️ The Three Foundational Pillars
 
-- 🌿 **Leaf Image Disease Diagnosis**: Fast deep learning inference classifying common crop diseases (Tomato, Paddy, Potato, Corn, Chilli, etc.) with confidence scores.
-- 📐 **OpenCV Lesion Severity Estimation**: Uses HSV color segmentation and contour analysis to calculate exact leaf surface area affected (Mild <15%, Moderate 15-40%, Severe >40%).
-- 📚 **RAG-Based Advisory Engine**: Contextual recommendations detailing **Organic/Biological remedies**, **Chemical interventions**, and **Preventive practices** with authoritative source citations.
-- 🌦️ **Weather-Aware Spray Safety Check**: Live weather fetching via Open-Meteo API. Automatically warns farmers if high rain probability or wind speed makes chemical spraying unsafe.
-- 🗣️ **Multilingual & Voice Assistance**: Full UI & Advisory support in both **English and Malayalam (മലയാളം)** with one-click **Text-to-Speech audio read-aloud**.
-- 📍 **Farm Plot & History Management**: Farmers can register multiple plots, attach crop scans, and monitor crop health trajectories over time.
-- 📊 **Admin Dashboard**: System analytics, disease prevalence pie charts, monthly scan trend graphs (built with Recharts), user directory, and Knowledge Base management.
+```
+                     ┌────────────────────────────────────────────────────────┐
+                     │              AgriMitra 360 Ecosystem                   │
+                     └──────────────────────────┬─────────────────────────────┘
+                                                │
+         ┌──────────────────────────────────────┼──────────────────────────────────────┐
+         │                                      │                                      │
+         ▼                                      ▼                                      ▼
+┌──────────────────┐                  ┌──────────────────┐                  ┌──────────────────┐
+│     PILLAR 1     │                  │     PILLAR 2     │                  │     PILLAR 3     │
+│   Pre-Harvest    │                  │   Post-Harvest   │                  │    Financial     │
+│    Agronomy      │                  │Market Intelligence│                 │Subsidy Navigator │
+├──────────────────┤                  ├──────────────────┤                  ├──────────────────┤
+│• Leaf Image Scan │                  │• Agmarknet Live  │                  │• PMFBY Insurance │
+│• OpenCV Severity │                  │  Mandi Rates     │                  │  Claim Generator │
+│• KAU/ICAR RAG    │                  │• 7-Day Forecast  │                  │• Smart AI Matcher│
+│• Weather Spray   │                  │• Middleman Bypass│                  │• Subhiksha &     │
+│  Safety Alert    │                  │  Arbitrage Calc  │                  │  Central Schemes │
+└──────────────────┘                  └──────────────────┘                  └──────────────────┘
+         │                                      │                                      │
+         └──────────────────────────────────────┼──────────────────────────────────────┘
+                                                │
+                                                ▼
+                     ┌────────────────────────────────────────────────────────┐
+                     │          PILLAR 4: Omnipresent Voice AI Agent          │
+                     │  Zero-Touch Malayalam & English Speech-to-Speech       │
+                     └────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🤝 Hackathon Stakeholder Impact Matrix
+
+| Stakeholder Group | Addressed by AgriMitra 360 |
+|---|---|
+| **Farmers & Progressive Farmers** | Zero-touch Malayalam voice interface, instant leaf scan diagnosis, live weather spray alerts. |
+| **Farmer Producer Organisations (FPOs) & Coops** | Aggregated Mandi price intelligence and regional market routing to eliminate middleman commission. |
+| **Agricultural Officers & Krishi Bhavan Officials** | Automated subsidy eligibility matching and digital crop loss claim packets with verified lesion severity. |
+| **Scientists & Extension Specialists (KAU / ICAR)** | Scientific recommendations citing official Package of Practices and biological controls. |
+| **Supply Chain & Warehousing** | 7-day predictive price volatility forecast advising whether to HOLD in warehouse or SELL immediately. |
+| **NABARD, Rural Banks & Insurance Agencies** | OpenCV objective damage quantification provides transparent digital proof for PMFBY claims and credit. |
+| **NGOs & Rural Community Organizations** | Fully inclusive vernacular speech accessibility for non-literate and non-English-speaking cultivators. |
 
 ---
 
@@ -32,13 +75,27 @@ Farmers can upload images of affected plant leaves through a web application. Th
 
 ```mermaid
 graph TD
-    A[React + Vite + Tailwind CSS Frontend] -->|REST API + JWT| B[Node.js + Express Gateway Server]
-    B -->|Database CRUD| C[MongoDB Atlas / Local Mongo]
-    B -->|Proxy Leaf Scan & RAG Requests| D[Python FastAPI AI Microservice]
-    B -->|Fetch Live Weather| E[Open-Meteo Weather API]
-    D -->|Classification| F[PyTorch EfficientNet Model]
-    D -->|Severity Analysis| G[OpenCV HSV Color Segmentation]
-    D -->|RAG Advisory| H[Knowledge Base Vector Store]
+    Farmer([Farmer / Rural Cultivator]) -->|Voice / UI in Malayalam & English| Client[React 18 + Vite + Tailwind CSS Web Application]
+
+    subgraph Client Application
+        Client --> P1[Pillar 1: Leaf Scanner & OpenCV Severity]
+        Client --> P2[Pillar 2: Mandi Intelligence & Forecast]
+        Client --> P3[Pillar 3: Subsidy Navigator & PMFBY]
+        Client --> Voice[Pillar 4: Omnipresent Voice Agent]
+    end
+
+    Client -->|REST API / JWT| Gateway[Node.js + Express API Gateway]
+
+    subgraph Backend Microservices & Data
+        Gateway --> Mongo[(MongoDB Atlas / Database)]
+        Gateway --> Weather[Open-Meteo Global Weather API]
+        Gateway --> MandiEng[Mandi Pricing & Arbitrage Engine]
+        Gateway --> SubsidyEng[Subsidy Matcher & Claim Engine]
+        Gateway --> FastAIService[Python FastAPI Microservice]
+        FastAIService --> Model[PyTorch Disease Classifier]
+        FastAIService --> CV[OpenCV HSV Severity Calculator]
+        FastAIService --> RAG[KAU & ICAR Agricultural Vector Store]
+    end
 ```
 
 ---
@@ -47,45 +104,12 @@ graph TD
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 18, Vite, Tailwind CSS, Lucide React, Recharts, Web Speech API |
-| **Backend** | Node.js, Express.js, MongoDB / Mongoose, JWT Authentication, Multer |
+| **Frontend** | React 18, Vite, Tailwind CSS, Lucide Icons, Recharts, Web Speech API (Speech Recognition & Synthesis) |
+| **Backend Gateway** | Node.js, Express.js, MongoDB / Mongoose, JWT Authentication, Multer |
 | **AI Microservice** | Python 3.x, FastAPI, Uvicorn, PyTorch / Torchvision, OpenCV, PIL, NumPy |
-| **RAG Knowledge Base** | Vector Similarity Retrieval, Curated KAU/ICAR Agricultural Guidelines |
-| **External APIs** | Open-Meteo Global Weather API (Free, keyless integration) |
-
----
-
-## 📁 Repository Structure
-
-```
-AgriPulse/
-├── package.json                   # Workspace scripts for root concurrency
-├── README.md                      # Project Documentation
-├── server/                        # Express API Gateway & MongoDB Models
-│   ├── server.js                  # Entry point
-│   ├── package.json
-│   ├── .env                       # Environment configuration
-│   ├── models/                    # User, Plot, Diagnosis, KnowledgeBase schemas
-│   ├── routes/                    # Auth, Plot, Diagnosis, Weather, Admin APIs
-│   └── middleware/                # JWT Auth & Admin authorization
-├── ai_service/                    # Python FastAPI AI & RAG Microservice
-│   ├── main.py                    # FastAPI app entry
-│   ├── disease_classifier.py      # PyTorch disease classification pipeline
-│   ├── severity_analyzer.py       # OpenCV leaf lesion area calculator
-│   ├── rag_engine.py              # Knowledge retrieval engine (EN & Malayalam)
-│   ├── knowledge_data.json        # Curated agricultural remedies & citations
-│   └── requirements.txt           # Python dependencies
-└── client/                        # React Vite Web Frontend
-    ├── index.html
-    ├── vite.config.js
-    ├── tailwind.config.js
-    ├── package.json
-    └── src/
-        ├── App.jsx                # Main Router & Route Guards
-        ├── context/               # AuthContext & LanguageContext (EN/ML + TTS)
-        ├── components/            # Navbar, Footer, WeatherWidget
-        └── pages/                 # HomePage, Dashboard, Diagnosis, Plots, History, Admin
-```
+| **RAG Knowledge Base** | Curated KAU (Kerala Agricultural University) & ICAR Package of Practices |
+| **Market Intelligence** | Agmarknet & APMC Reporting Feeds, Statistical 7-day Volatility Projection |
+| **Meteorological API** | Open-Meteo Keyless Global Weather Engine |
 
 ---
 
@@ -96,44 +120,66 @@ AgriPulse/
 - **Python**: 3.10 or higher
 - **MongoDB**: Local MongoDB or MongoDB Atlas URI
 
-### 1. Clone & Set Up Workspace
-```bash
-git clone https://github.com/Athul3588krishna/AgriPulse.git
-cd AgriPulse
-```
+### 1. Install Dependencies
 
-### 2. Set Up Express Backend (`server/`)
 ```bash
-cd server
+# Root & client dependencies
 npm install
-npm run dev
-# Express Server will run on http://localhost:5000
+cd client && npm install
+cd ../server && npm install
 ```
 
-### 3. Set Up Python AI Microservice (`ai_service/`)
-```bash
-cd ../ai_service
-pip install -r requirements.txt
-py main.py
-# FastAPI AI Microservice will run on http://127.0.0.1:8000
+### 2. Environment Configuration
+Create `server/.env`:
+```env
+PORT=5000
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=agrimitra360_secret_key_2026
+AI_SERVICE_URL=http://127.0.0.1:8000
 ```
 
-### 4. Set Up React Frontend (`client/`)
+### 3. Start the Platform
 ```bash
-cd ../client
-npm install
+# Run server & client concurrently from project root
 npm run dev
-# React Application will run on http://localhost:3000
-```
 
-### 5. Run Concurrently from Root
-Alternatively, from the root `AgriPulse/` directory:
-```bash
-npm run install:all
-npm run dev
+# Or run separately:
+# Terminal 1 (Backend Gateway):
+cd server && npm run dev
+
+# Terminal 2 (React Frontend):
+cd client && npm run dev
+
+# Terminal 3 (Python AI Microservice):
+cd ai_service && uvicorn main:app --port 8000 --reload
 ```
 
 ---
 
-## 📜 License
-This project is developed for educational and open-source precision agriculture research purposes.
+## 📱 Live Demonstration Guide for Evaluators
+
+1. **Pillar 1 - Leaf Disease & Weather Diagnosis (`/scan`)**:
+   - Upload any tomato/potato/paddy leaf photo.
+   - View the deep learning classification score and the **OpenCV Lesion Severity area percentage**.
+   - Check the **Weather Spray Safety** rating before applying remedies.
+   - If damage > 20%, click **"File PMFBY Claim"** to instantly bridge to Pillar 3.
+
+2. **Pillar 2 - Mandi Price Intelligence & Arbitrage (`/mandi`)**:
+   - Select crops like Paddy, Nendran Banana, or Tomato.
+   - Observe the **7-Day Price Volatility Forecast** rendered via Recharts.
+   - Use the **Middleman Bypass Net-Profit Calculator** by entering harvest quantity (e.g., 600 kg) to view the most profitable market routing.
+
+3. **Pillar 3 - Autonomous Subsidy & Insurance Navigator (`/subsidies`)**:
+   - Enter your plot size (e.g., 2 Acres) and crop type.
+   - Click **"Evaluate Qualified Schemes"** to see eligible central & Kerala schemes (PM-KISAN, PMFBY, Subhiksha Keralam) and calculate cumulative entitlements.
+   - Generate official claim dossiers with geo-tagged damage timestamps.
+
+4. **Pillar 4 - Omnipresent Vernacular Voice AI**:
+   - Click the floating **Voice AI** button in the bottom right corner.
+   - Tap the microphone and speak in **Malayalam** (e.g., *"ഇന്നത്തെ നെല്ലിന്റെ വില എത്രയാണ്?"*) or click any quick query chip.
+   - Listen to the spoken audio response in native Malayalam.
+
+---
+
+## 📄 License & Attribution
+Developed for Hackathons and Agricultural Conferences. References authoritative guidelines from the **Kerala Agricultural University (KAU)**, **ICAR**, **Agmarknet**, and the **Ministry of Agriculture & Farmers Welfare, Government of India**.

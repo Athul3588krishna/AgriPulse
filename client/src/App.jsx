@@ -5,10 +5,13 @@ import { LanguageProvider } from './context/LanguageContext';
 
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
+import { VoiceAgentModal } from './components/VoiceAgentModal';
 
 import { HomePage } from './pages/HomePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DiagnosisPage } from './pages/DiagnosisPage';
+import { MandiPage } from './pages/MandiPage';
+import { SubsidyPage } from './pages/SubsidyPage';
 import { PlotsPage } from './pages/PlotsPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { AdminPage } from './pages/AdminPage';
@@ -34,11 +37,13 @@ export default function App() {
     <AuthProvider>
       <LanguageProvider>
         <Router>
-          <div className="min-h-screen flex flex-col justify-between bg-slate-50 text-slate-900">
+          <div className="min-h-screen flex flex-col justify-between bg-slate-50 text-slate-900 relative">
             <Navbar />
             <main className="flex-grow">
               <Routes>
                 <Route path="/" element={<HomePage />} />
+                <Route path="/mandi" element={<MandiPage />} />
+                <Route path="/subsidies" element={<SubsidyPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 
@@ -52,6 +57,9 @@ export default function App() {
               </Routes>
             </main>
             <Footer />
+            
+            {/* Omnipresent Vernacular Voice AI Agent */}
+            <VoiceAgentModal />
           </div>
         </Router>
       </LanguageProvider>
