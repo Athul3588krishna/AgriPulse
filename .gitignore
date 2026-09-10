@@ -12,10 +12,6 @@ uploads/
 *.log
 *.tmp
 
-# Environment variables
-.env
-**/.env
-
 # Python cached files
 __pycache__/
 **/__pycache__/
@@ -26,3 +22,5 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+
+#hello
