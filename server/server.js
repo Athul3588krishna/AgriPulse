@@ -11,6 +11,7 @@ const weatherRoutes = require('./routes/weatherRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const mandiRoutes = require('./routes/mandiRoutes');
 const subsidyRoutes = require('./routes/subsidyRoutes');
+const agentRoutes = require('./routes/agentRoutes');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/api/weather', weatherRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/mandi', mandiRoutes);
 app.use('/api/subsidies', subsidyRoutes);
+app.use('/api/agent', agentRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

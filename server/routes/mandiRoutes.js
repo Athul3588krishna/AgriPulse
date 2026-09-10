@@ -286,4 +286,5 @@ router.post('/optimize-arbitrage', (req, res) => {
   });
 });
 
+router.mandiDatabase = mandiDatabase;
 module.exports = router;

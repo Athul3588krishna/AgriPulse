@@ -275,4 +275,5 @@ router.post('/generate-claim-packet', (req, res) => {
   });
 });
 
+router.schemesDatabase = schemesDatabase;
 module.exports = router;

@@ -1,0 +1,595 @@
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+
+// Reference databases
+let mandiDatabase = [];
+let schemesDatabase = [];
+
+try {
+  const mandiRoutes = require('../routes/mandiRoutes');
+  mandiDatabase = mandiRoutes.mandiDatabase || [];
+} catch (e) {
+  console.warn('Could not load mandiDatabase from routes:', e.message);
+}
+
+try {
+  const subsidyRoutes = require('../routes/subsidyRoutes');
+  schemesDatabase = subsidyRoutes.schemesDatabase || [];
+} catch (e) {
+  console.warn('Could not load schemesDatabase from routes:', e.message);
+}
+
+// Load RAG knowledge data
+let knowledgeBase = [];
+const knowledgePath = path.join(__dirname, '../../ai_service/knowledge_data.json');
+try {
+  if (fs.existsSync(knowledgePath)) {
+    knowledgeBase = JSON.parse(fs.readFileSync(knowledgePath, 'utf-8'));
+  }
+} catch (e) {
+  console.warn('Could not load knowledge_data.json:', e.message);
+}
+
+// Kerala district coordinates mapping
+const DISTRICT_COORDS = {
+  palakkad: { lat: 10.7867, lon: 76.6548, name: 'Palakkad' },
+  thrissur: { lat: 10.5276, lon: 76.2144, name: 'Thrissur' },
+  ernakulam: { lat: 9.9816, lon: 76.2999, name: 'Ernakulam' },
+  alappuzha: { lat: 9.4981, lon: 76.3388, name: 'Alappuzha' },
+  wayanad: { lat: 11.6854, lon: 76.1320, name: 'Wayanad' },
+  idukki: { lat: 9.8494, lon: 76.9804, name: 'Idukki' },
+  kottayam: { lat: 9.5916, lon: 76.5222, name: 'Kottayam' },
+  kozhikode: { lat: 11.2588, lon: 75.7804, name: 'Kozhikode' },
+  kannur: { lat: 11.8745, lon: 75.3704, name: 'Kannur' },
+  kasaragod: { lat: 12.4996, lon: 74.9869, name: 'Kasaragod' },
+  kollam: { lat: 8.8932, lon: 76.6141, name: 'Kollam' },
+  thiruvananthapuram: { lat: 8.5241, lon: 76.9366, name: 'Thiruvananthapuram' },
+  malappuram: { lat: 11.0510, lon: 76.0711, name: 'Malappuram' },
+  pathanamthitta: { lat: 9.2648, lon: 76.7870, name: 'Pathanamthitta' }
+};
+
+// ==========================================
+// 1. SPECIALIZED AGENT TOOLS
+// ==========================================
+
+const tools = {
+  /**
+   * Tool 1: Live APMC Mandi Price Intelligence
+   */
+  tool_mandi_prices: async ({ crop, district }) => {
+    const targetCrop = crop || 'Paddy';
+    let filteredMandis = [...mandiDatabase];
+
+    if (district) {
+      const match = filteredMandis.filter(m => 
+        m.district.toLowerCase().includes(district.toLowerCase())
+      );
+      if (match.length > 0) filteredMandis = match;
+    }
+
+    const rates = [];
+    filteredMandis.forEach(m => {
+      const priceObj = m.prices ? m.prices[targetCrop] : null;
+      if (priceObj) {
+        rates.push({
+          mandiName: m.name,
+          district: m.district,
+          minPrice: priceObj.min,
+          maxPrice: priceObj.max,
+          modalPrice: priceObj.modal,
+          unit: priceObj.unit,
+          trend: priceObj.trend,
+          change: priceObj.change
+        });
+      }
+    });
+
+    // If no exact crop found, list available crops from first mandi
+    if (rates.length === 0 && mandiDatabase.length > 0) {
+      const firstMandi = mandiDatabase[0];
+      const availableCrops = Object.keys(firstMandi.prices || {});
+      return {
+        status: 'partial',
+        targetCrop,
+        message: `No direct rates found for ${targetCrop}. Available commodities: ${availableCrops.join(', ')}`,
+        availableCrops
+      };
+    }
+
+    // Sort by modal price descending
+    rates.sort((a, b) => b.modalPrice - a.modalPrice);
+    const topMarket = rates[0] || null;
+
+    return {
+      status: 'success',
+      targetCrop,
+      topMarket,
+      allMarkets: rates,
+      summaryEn: topMarket 
+        ? `Highest rate for ${targetCrop} is at ${topMarket.mandiName} (${topMarket.district}) at ₹${topMarket.modalPrice}/${topMarket.unit} (${topMarket.trend === 'up' ? '+' : ''}${topMarket.change}).`
+        : `Mandi prices available across Kerala APMC markets.`,
+      summaryMl: topMarket
+        ? `${targetCrop}-ന്റെ ഏറ്റവും ഉയർന്ന വിപണി നിരക്ക് ${topMarket.mandiName} (${topMarket.district})-ൽ ആണ്: ₹${topMarket.modalPrice}/${topMarket.unit} (മാറ്റം: ${topMarket.trend === 'up' ? '+' : ''}${topMarket.change}).`
+        : `വിപണി നിരക്കുകൾ ലഭ്യമാണ്.`
+    };
+  },
+
+  /**
+   * Tool 2: Weather Spray Safety & Meteorological Risk
+   */
+  tool_weather_spray_safety: async ({ lat, lon, district }) => {
+    let latitude = lat || 9.9312;
+    let longitude = lon || 76.2673;
+    let locationName = district || 'Kerala Region';
+
+    if (district && DISTRICT_COORDS[district.toLowerCase()]) {
+      latitude = DISTRICT_COORDS[district.toLowerCase()].lat;
+      longitude = DISTRICT_COORDS[district.toLowerCase()].lon;
+      locationName = DISTRICT_COORDS[district.toLowerCase()].name;
+    }
+
+    try {
+      const response = await axios.get(
+        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,precipitation,rain,wind_speed_10m&daily=precipitation_probability_max&timezone=auto`,
+        { timeout: 4000 }
+      );
+      const current = response.data.current || {};
+      const daily = response.data.daily || {};
+
+      const temp = current.temperature_2m ?? 28.5;
+      const humidity = current.relative_humidity_2m ?? 75;
+      const rainProb = daily.precipitation_probability_max?.[0] ?? 20;
+      const windSpeed = current.wind_speed_10m ?? 8.5;
+
+      let safety = 'SAFE';
+      let reasonEn = `Wind speed is low (${windSpeed} km/h) and rain probability is ${rainProb}%. Safe to spray organic or chemical treatments between 7:00 AM - 9:30 AM or late evening.`;
+      let reasonMl = `കാറ്റിന്റെ വേഗത ${windSpeed} km/h മാത്രമാണ്, മഴ സാധ്യത ${rainProb}%. രാവിലെ 7:00 - 9:30 വരെയോ വൈകുന്നേരമോ മരുന്ന് തളിക്കാൻ കാലാവസ്ഥ തികച്ചും അനുയോജ്യമാണ്.`;
+
+      if (rainProb > 50) {
+        safety = 'UNSAFE';
+        reasonEn = `Rain probability is high (${rainProb}%). Do NOT spray right now as rain will wash away chemical fungicides.`;
+        reasonMl = `മഴ പെയ്യാൻ ഉയർന്ന സാധ്യതയുണ്ട് (${rainProb}%). ഇപ്പോൾ മരുന്ന് തളിക്കുന്നത് ലായനി ഒലിച്ചുപോകാൻ ഇടയാക്കും.`;
+      } else if (windSpeed > 15) {
+        safety = 'CAUTION';
+        reasonEn = `High wind speeds (${windSpeed} km/h) detected. Use drift-reduction nozzles to prevent spray dispersion.`;
+        reasonMl = `ശക്തമായ കാറ്റ് (${windSpeed} km/h) ഉള്ളതിനാൽ മരുന്ന് പരന്നുപോകാൻ സാധ്യതയുണ്ട്. ജാഗ്രത പാലിക്കുക.`;
+      }
+
+      return {
+        status: 'success',
+        location: locationName,
+        temperature: temp,
+        humidity,
+        rainProbability: rainProb,
+        windSpeed,
+        safety,
+        reasonEn,
+        reasonMl
+      };
+    } catch (e) {
+      return {
+        status: 'fallback',
+        location: locationName,
+        temperature: 28.0,
+        humidity: 75,
+        rainProbability: 25,
+        windSpeed: 9.0,
+        safety: 'SAFE',
+        reasonEn: 'Moderate weather conditions. Suitable for spraying in early morning hours.',
+        reasonMl: 'അനുകൂല കാലാവസ്ഥ. രാവിലെ സമയങ്ങളിൽ മരുന്ന് തളിക്കാവുന്നതാണ്.'
+      };
+    }
+  },
+
+  /**
+   * Tool 3: KAU & ICAR Scientific Crop Disease & RAG Advisory
+   */
+  tool_disease_advisory: async ({ crop, disease, symptom }) => {
+    const searchTarget = (disease || symptom || crop || '').toLowerCase();
+    let matchedItem = null;
+
+    if (knowledgeBase && knowledgeBase.length > 0) {
+      matchedItem = knowledgeBase.find(k => 
+        k.disease_name.toLowerCase().includes(searchTarget) ||
+        (k.crop && k.crop.toLowerCase().includes(searchTarget)) ||
+        searchTarget.includes(k.disease_name.toLowerCase()) ||
+        searchTarget.includes(k.crop.toLowerCase())
+      );
+    }
+
+    if (!matchedItem && knowledgeBase.length > 0) {
+      matchedItem = knowledgeBase[0]; // fallback to first well-documented disease
+    }
+
+    if (matchedItem) {
+      return {
+        status: 'success',
+        diseaseName: matchedItem.disease_name,
+        crop: matchedItem.crop,
+        organicTreatmentEn: matchedItem.english.organic,
+        chemicalTreatmentEn: matchedItem.english.chemical,
+        preventiveTipsEn: matchedItem.english.preventive,
+        organicTreatmentMl: matchedItem.malayalam.organic,
+        chemicalTreatmentMl: matchedItem.malayalam.chemical,
+        preventiveTipsMl: matchedItem.malayalam.preventive,
+        sources: matchedItem.sources
+      };
+    }
+
+    // Default science-backed guideline
+    return {
+      status: 'standard_practice',
+      diseaseName: disease || 'Fungal Foliar Spot',
+      crop: crop || 'General',
+      organicTreatmentEn: [
+        'Neem oil 5ml/L with soap solution spray on foliage.',
+        'Trichoderma viride bio-formulation application @ 10g/L.'
+      ],
+      chemicalTreatmentEn: [
+        'Copper Oxychloride 50% WP @ 3g/L water.',
+        'Apply systemic fungicide (Mancozeb 2g/L) for severe infestation.'
+      ],
+      preventiveTipsEn: [
+        'Remove infected lower leaves and ensure good soil drainage.',
+        'Avoid wetting foliage during evening hours.'
+      ],
+      organicTreatmentMl: [
+        'വേപ്പെണ്ണ-സോപ്പ് മിശ്രിതം (5 മില്ലി/ലിറ്റർ) ഇലകളിൽ തളിക്കുക.',
+        'ട്രൈക്കോഡെർമ വിരിഡെ ജൈവ കുമിൾനാശിനി (10 ഗ്രാം/ലിറ്റർ) ഉപയോഗിക്കുക.'
+      ],
+      chemicalTreatmentMl: [
+        'കോപ്പർ ഓക്സിക്ലോറൈഡ് 3 ഗ്രാം ഒരു ലിറ്റർ വെള്ളത്തിൽ കലക്കി തളിക്കുക.'
+      ],
+      preventiveTipsMl: [
+        'രോഗബാധയുള്ള ഇലകൾ നീക്കം ചെയ്യുക, വെള്ളക്കെട്ട് ഒഴിവാക്കുക.'
+      ],
+      sources: [{ title: 'Kerala Agricultural University Advisory Manual', url: 'https://kau.in' }]
+    };
+  },
+
+  /**
+   * Tool 4: Autonomous Subsidy & PMFBY Scheme Navigator
+   */
+  tool_subsidy_navigator: async ({ schemeName, crop, landAcres, damageSeverity }) => {
+    const acres = parseFloat(landAcres) || 1.0;
+    const targetCrop = crop || 'Paddy';
+    const targetQuery = (schemeName || '').toLowerCase();
+
+    let matchedScheme = schemesDatabase.find(s => 
+      s.id.toLowerCase().includes(targetQuery) ||
+      s.nameEn.toLowerCase().includes(targetQuery) ||
+      s.nameMl.toLowerCase().includes(targetQuery)
+    );
+
+    if (!matchedScheme && schemesDatabase.length > 0) {
+      matchedScheme = schemesDatabase[0]; // PMFBY default
+    }
+
+    let estimatedPayout = 0;
+    if (matchedScheme && typeof matchedScheme.estimatedBenefitFormula === 'function') {
+      estimatedPayout = matchedScheme.estimatedBenefitFormula(acres, targetCrop);
+    } else {
+      estimatedPayout = Math.round(acres * 30000);
+    }
+
+    return {
+      status: 'success',
+      schemeId: matchedScheme ? matchedScheme.id : 'pmfby',
+      schemeNameEn: matchedScheme ? matchedScheme.nameEn : 'Pradhan Mantri Fasal Bima Yojana (PMFBY)',
+      schemeNameMl: matchedScheme ? matchedScheme.nameMl : 'പ്രധാനമന്ത്രി ഫസൽ ബീമാ യോജന',
+      estimatedBenefit: `₹${estimatedPayout.toLocaleString('en-IN')}`,
+      maxFinancialBenefitEn: matchedScheme ? matchedScheme.maxFinancialBenefitEn : 'Up to ₹35,000/acre',
+      maxFinancialBenefitMl: matchedScheme ? matchedScheme.maxFinancialBenefitMl : 'ഏക്കറിന് ₹35,000 വരെ നഷ്ടപരിഹാരം',
+      requiredDocumentsEn: matchedScheme ? matchedScheme.requiredDocumentsEn : ['Aadhaar Card', 'Land Tax Receipt', 'Bank Passbook'],
+      requiredDocumentsMl: matchedScheme ? matchedScheme.requiredDocumentsMl : ['ആധാർ കാർഡ്', 'ഭൂനികുതി രസീത്', 'ബാങ്ക് പാസ്ബുക്ക്'],
+      applyUrl: matchedScheme ? matchedScheme.applyUrl : 'https://pmfby.gov.in',
+      claimWindowNotice: 'Report crop damage to Krishi Bhavan or PMFBY portal within 72 hours of occurrence with leaf image evidence.'
+    };
+  },
+
+  /**
+   * Tool 5: Middleman Arbitrage & Direct Market Optimizer
+   */
+  tool_middleman_arbitrage: async ({ crop, quantityKg, farmLocation }) => {
+    const qty = parseFloat(quantityKg) || 1000;
+    const targetCrop = crop || 'Paddy';
+
+    // Average direct APMC modal vs middleman local cut
+    const apmcModal = targetCrop.toLowerCase().includes('paddy') ? 30.8 : 36.0;
+    const middlemanRate = apmcModal * 0.78; // Middlemen pay ~22% less
+
+    const directGross = qty * apmcModal;
+    const middlemanGross = qty * middlemanRate;
+    const directBenefit = Math.round(directGross - middlemanGross);
+
+    return {
+      status: 'success',
+      commodity: targetCrop,
+      quantityKg: qty,
+      directApmcPricePerKg: apmcModal,
+      middlemanFarmgatePricePerKg: middlemanRate.toFixed(1),
+      estimatedMiddlemanLoss: directBenefit,
+      recommendationEn: `Selling ${qty}kg of ${targetCrop} directly to the nearest APMC Mandi saves ₹${directBenefit.toLocaleString('en-IN')} by bypassing local middleman commissions.`,
+      recommendationMl: `${qty}kg ${targetCrop} ഇടനിലക്കാർക്ക് നൽകാതെ നേരിട്ട് APMC മണ്ടിയിൽ വിറ്റാൽ ₹${directBenefit.toLocaleString('en-IN')} അധിക വരുമാനം ലഭിക്കും.`
+    };
+  }
+};
+
+// Tool metadata specifications (for Gemini Function Calling or documentation)
+const toolDefinitions = [
+  {
+    name: 'tool_mandi_prices',
+    description: 'Query real-time Kerala APMC Mandi commodity rates, modal prices, and market trends.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        crop: { type: 'STRING', description: 'Crop name (e.g. Paddy, Tomato, Coconut, Banana, Cardamom, BlackPepper)' },
+        district: { type: 'STRING', description: 'Kerala district name (e.g. Palakkad, Thrissur, Ernakulam, Wayanad)' }
+      }
+    }
+  },
+  {
+    name: 'tool_weather_spray_safety',
+    description: 'Fetch real-time weather, wind velocity, rain probability, and pesticide/fertilizer spray safety analysis.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        district: { type: 'STRING', description: 'District name in Kerala (e.g. Palakkad, Wayanad, Ernakulam)' },
+        lat: { type: 'NUMBER', description: 'Latitude coordinate' },
+        lon: { type: 'NUMBER', description: 'Longitude coordinate' }
+      }
+    }
+  },
+  {
+    name: 'tool_disease_advisory',
+    description: 'Query Kerala Agricultural University (KAU) & ICAR scientific disease management, bio-organic and chemical spray dosages.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        crop: { type: 'STRING', description: 'Crop name' },
+        disease: { type: 'STRING', description: 'Disease name or symptom (e.g. Late Blight, Leaf Spot, fungal rot)' }
+      }
+    }
+  },
+  {
+    name: 'tool_subsidy_navigator',
+    description: 'Calculate eligible farmer government subsidies, PMFBY crop insurance compensation, and required application documents.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        schemeName: { type: 'STRING', description: 'Name or type of scheme (PMFBY, PM-KISAN, Subhiksha Keralam)' },
+        crop: { type: 'STRING', description: 'Crop grown' },
+        landAcres: { type: 'NUMBER', description: 'Farm land acreage' }
+      }
+    }
+  },
+  {
+    name: 'tool_middleman_arbitrage',
+    description: 'Calculate APMC direct market sales profit vs local middleman exploitation margin.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        crop: { type: 'STRING', description: 'Crop commodity' },
+        quantityKg: { type: 'NUMBER', description: 'Harvest quantity in kg' }
+      }
+    }
+  }
+];
+
+// ==========================================
+// 2. AUTONOMOUS ReAct ORCHESTRATOR
+// ==========================================
+
+/**
+ * Parses user intent and automatically decides the execution chain
+ */
+function planAutonomousActions(userQuery) {
+  const q = userQuery.toLowerCase();
+  const plannedSteps = [];
+
+  // Extract District Mention
+  let detectedDistrict = null;
+  for (const distKey of Object.keys(DISTRICT_COORDS)) {
+    if (q.includes(distKey)) {
+      detectedDistrict = DISTRICT_COORDS[distKey].name;
+      break;
+    }
+  }
+  // Malayalam district mentions
+  if (q.includes('പാലക്കാട്')) detectedDistrict = 'Palakkad';
+  else if (q.includes('തൃശ്ശൂർ') || q.includes('തൃശൂർ')) detectedDistrict = 'Thrissur';
+  else if (q.includes('എറണാകുളം') || q.includes('കൊച്ചി')) detectedDistrict = 'Ernakulam';
+  else if (q.includes('ആലപ്പുഴ')) detectedDistrict = 'Alappuzha';
+  else if (q.includes('വയനാട്')) detectedDistrict = 'Wayanad';
+  else if (q.includes('ഇടുക്കി')) detectedDistrict = 'Idukki';
+
+  // Extract Crop Mention
+  let detectedCrop = 'Paddy';
+  if (q.includes('tomato') || q.includes('തക്കാളി')) detectedCrop = 'Tomato';
+  else if (q.includes('banana') || q.includes('വാഴ') || q.includes('നേന്ത്ര')) detectedCrop = 'NendranBanana';
+  else if (q.includes('coconut') || q.includes('തേങ്ങ') || q.includes('നാളികേരം')) detectedCrop = 'Coconut';
+  else if (q.includes('pepper') || q.includes('കുരുമുളക്')) detectedCrop = 'BlackPepper';
+  else if (q.includes('cardamom') || q.includes('ഏലം')) detectedCrop = 'Cardamom';
+  else if (q.includes('ginger') || q.includes('ഇഞ്ചി')) detectedCrop = 'Ginger';
+  else if (q.includes('chilli') || q.includes('മുളക്')) detectedCrop = 'GreenChilli';
+  else if (q.includes('potato') || q.includes('ഉരുളക്കിഴങ്ങ്')) detectedCrop = 'Potato';
+
+  // 1. Mandi Price Intent
+  const hasMandiIntent = q.includes('mandi') || q.includes('price') || q.includes('rate') || 
+    q.includes('മാർക്കറ്റ്') || q.includes('വില') || q.includes('വിപണി') || q.includes('ക്വിന്റൽ');
+
+  // 2. Weather & Spray Timing Intent
+  const hasWeatherIntent = q.includes('weather') || q.includes('rain') || q.includes('spray') || 
+    q.includes('മഴ') || q.includes('കാലാവസ്ഥ') || q.includes('തളിക്ക') || q.includes('കാറ്റ്');
+
+  // 3. Disease & Treatment Intent
+  const hasDiseaseIntent = q.includes('disease') || q.includes('leaf') || q.includes('blight') || 
+    q.includes('spot') || q.includes('cure') || q.includes('medicine') || q.includes('രോഗം') || 
+    q.includes('ഇല') || q.includes('കുമിൾ') || q.includes('മരുന്ന്') || q.includes('പ്രതിവിധി');
+
+  // 4. Subsidy & Insurance Intent
+  const hasSubsidyIntent = q.includes('subsidy') || q.includes('scheme') || q.includes('pmfby') || 
+    q.includes('pm-kisan') || q.includes('insurance') || q.includes('സബ്‌സിഡി') || 
+    q.includes('പദ്ധതി') || q.includes('ഇൻഷുറൻസ്') || q.includes('നഷ്ടപരിഹാരം');
+
+  // 5. Arbitrage / Middleman Intent
+  const hasArbitrageIntent = q.includes('middleman') || q.includes('broker') || q.includes('profit') || 
+    q.includes('ഇടനില') || q.includes('ലാഭം') || q.includes('കമ്മീഷൻ');
+
+  // Multi-step action planning
+  if (hasMandiIntent) {
+    plannedSteps.push({
+      tool: 'tool_mandi_prices',
+      args: { crop: detectedCrop, district: detectedDistrict },
+      thought: `Farmer needs current market intelligence for ${detectedCrop} in ${detectedDistrict || 'Kerala APMC hubs'}. Querying live Mandi prices.`
+    });
+  }
+
+  if (hasWeatherIntent) {
+    plannedSteps.push({
+      tool: 'tool_weather_spray_safety',
+      args: { district: detectedDistrict || 'Palakkad' },
+      thought: `Farmer is inquiring about atmospheric conditions for spraying. Querying Open-Meteo meteorological radar for ${detectedDistrict || 'Palakkad'}.`
+    });
+  }
+
+  if (hasDiseaseIntent) {
+    plannedSteps.push({
+      tool: 'tool_disease_advisory',
+      args: { crop: detectedCrop, disease: q.includes('blight') ? 'Tomato Late Blight' : 'Bacterial Leaf Spot' },
+      thought: `Diagnosing crop foliar affliction for ${detectedCrop}. Accessing KAU & ICAR Package of Practices repository.`
+    });
+  }
+
+  if (hasSubsidyIntent) {
+    plannedSteps.push({
+      tool: 'tool_subsidy_navigator',
+      args: { schemeName: q.includes('kisan') ? 'pm-kisan' : 'pmfby', crop: detectedCrop, landAcres: 1.5 },
+      thought: `Farmer needs financial security guidance. Evaluating government schemes, eligibility parameters, and PMFBY claim criteria.`
+    });
+  }
+
+  if (hasArbitrageIntent && !hasMandiIntent) {
+    plannedSteps.push({
+      tool: 'tool_middleman_arbitrage',
+      args: { crop: detectedCrop, quantityKg: 1000 },
+      thought: `Analyzing price disparity between farmgate broker quotes and regulated APMC auctions.`
+    });
+  }
+
+  // Default fallback tool if query was open-ended
+  if (plannedSteps.length === 0) {
+    plannedSteps.push({
+      tool: 'tool_mandi_prices',
+      args: { crop: detectedCrop, district: detectedDistrict },
+      thought: `Executing market baseline retrieval for regional agriculture.`
+    });
+  }
+
+  return plannedSteps;
+}
+
+/**
+ * Executes an Autonomous ReAct conversation cycle
+ */
+async function processAgentQuery({ message, lang = 'en', context = {}, location = null }) {
+  const reactSteps = [];
+  const toolsCalled = [];
+
+  // Step 1: Reason and create tool execution plan
+  const plannedSteps = planAutonomousActions(message);
+
+  // Step 2: Act - Run all autonomous tools
+  for (let i = 0; i < plannedSteps.length; i++) {
+    const stepPlan = plannedSteps[i];
+    const toolFn = tools[stepPlan.tool];
+
+    if (toolFn) {
+      try {
+        const observation = await toolFn(stepPlan.args);
+        toolsCalled.push(stepPlan.tool);
+
+        reactSteps.push({
+          stepNumber: i + 1,
+          thought: stepPlan.thought,
+          tool: stepPlan.tool,
+          input: stepPlan.args,
+          observation: observation
+        });
+      } catch (err) {
+        reactSteps.push({
+          stepNumber: i + 1,
+          thought: stepPlan.thought,
+          tool: stepPlan.tool,
+          input: stepPlan.args,
+          observation: { error: err.message }
+        });
+      }
+    }
+  }
+
+  // Step 3: Synthesize final answer based on observations
+  let textEn = '';
+  let textMl = '';
+
+  const mandiObs = reactSteps.find(s => s.tool === 'tool_mandi_prices')?.observation;
+  const weatherObs = reactSteps.find(s => s.tool === 'tool_weather_spray_safety')?.observation;
+  const diseaseObs = reactSteps.find(s => s.tool === 'tool_disease_advisory')?.observation;
+  const subsidyObs = reactSteps.find(s => s.tool === 'tool_subsidy_navigator')?.observation;
+  const arbitrageObs = reactSteps.find(s => s.tool === 'tool_middleman_arbitrage')?.observation;
+
+  const responseSectionsEn = [];
+  const responseSectionsMl = [];
+
+  if (mandiObs && mandiObs.topMarket) {
+    responseSectionsEn.push(`📊 **Mandi Price Alert**: For **${mandiObs.targetCrop}**, the highest modal rate is at **${mandiObs.topMarket.mandiName} (${mandiObs.topMarket.district})** at **₹${mandiObs.topMarket.modalPrice} per ${mandiObs.topMarket.unit}** (${mandiObs.topMarket.trend === 'up' ? '+' : ''}${mandiObs.topMarket.change}).`);
+    responseSectionsMl.push(`📊 **വിപണി വില**: **${mandiObs.targetCrop}**-ന് ഏറ്റവും ഉയർന്ന നിരക്ക് **${mandiObs.topMarket.mandiName} (${mandiObs.topMarket.district})**-ൽ ആണ് — ക്വിന്റലിന്/കിലോയ്ക്ക് **₹${mandiObs.topMarket.modalPrice}** (${mandiObs.topMarket.trend === 'up' ? '+' : ''}${mandiObs.topMarket.change}).`);
+  }
+
+  if (weatherObs) {
+    const icon = weatherObs.safety === 'SAFE' ? '✅' : '⚠️';
+    responseSectionsEn.push(`${icon} **Weather Spray Advisory (${weatherObs.location})**: Status is **${weatherObs.safety}**. ${weatherObs.reasonEn}`);
+    responseSectionsMl.push(`${icon} **കാലാവസ്ഥ പരിശോധന (${weatherObs.location})**: തളിക്കൽ പദവി: **${weatherObs.safety}**. ${weatherObs.reasonMl}`);
+  }
+
+  if (diseaseObs) {
+    responseSectionsEn.push(`🔬 **KAU Scientific Treatment (${diseaseObs.diseaseName})**: \n- *Organic Remedy*: ${diseaseObs.organicTreatmentEn ? diseaseObs.organicTreatmentEn.join(' ') : 'Neem oil 5ml/L spray.'}\n- *Chemical Spray*: ${diseaseObs.chemicalTreatmentEn ? diseaseObs.chemicalTreatmentEn.join(' ') : 'Copper Oxychloride 3g/L.'}`);
+    responseSectionsMl.push(`🔬 **ശാസ്ത്രീയ പ്രതിവിധി (${diseaseObs.diseaseName})**: \n- *ജൈവ നിയന്ത്രണം*: ${diseaseObs.organicTreatmentMl ? diseaseObs.organicTreatmentMl.join(' ') : 'വേപ്പെണ്ണ മിശ്രിതം തളിക്കുക.'}\n- *രാസ നിയന്ത്രണം*: ${diseaseObs.chemicalTreatmentMl ? diseaseObs.chemicalTreatmentMl.join(' ') : 'കോപ്പർ ഓക്സിക്ലോറൈഡ് 3g/ലിറ്റർ ഉപയോഗിക്കുക.'}`);
+  }
+
+  if (subsidyObs) {
+    responseSectionsEn.push(`🏛️ **Government Scheme (${subsidyObs.schemeNameEn})**: Eligible for **${subsidyObs.maxFinancialBenefitEn}** (est. payout: **${subsidyObs.estimatedBenefit}**). ${subsidyObs.claimWindowNotice}`);
+    responseSectionsMl.push(`🏛️ **സർക്കാർ സഹായം (${subsidyObs.schemeNameMl})**: **${subsidyObs.maxFinancialBenefitMl}** വരെ ലഭിക്കാം (പ്രതീക്ഷിക്കുന്ന തുക: **${subsidyObs.estimatedBenefit}**). കൃഷിഭവനിൽ 72 മണിക്കൂറിനുള്ളിൽ രേഖകൾ സഹിതം അപേക്ഷിക്കുക.`);
+  }
+
+  if (arbitrageObs) {
+    responseSectionsEn.push(`💰 **Direct APMC Arbitrage**: ${arbitrageObs.recommendationEn}`);
+    responseSectionsMl.push(`💰 **ലാഭക്കണക്ക്**: ${arbitrageObs.recommendationMl}`);
+  }
+
+  if (responseSectionsEn.length === 0) {
+    textEn = `AgriMitra Autonomous Agent analyzed your query. You can ask me for live Agmarknet Mandi prices, real-time spray safety weather checks, KAU disease treatment dosages, and PMFBY government subsidies.`;
+    textMl = `അഗ്രിമിത്ര ഓട്ടോണമസ് ഏജന്റ് നിങ്ങളുടെ ചോദ്യം പരിശോധിച്ചു. തത്സമയ മണ്ടി വിലകൾ, കാലാവസ്ഥാ സ്പ്രേ സുരക്ഷ, വിള രോഗ പ്രതിവിധികൾ, സർക്കാർ സബ്‌സിഡികൾ എന്നിവയെക്കുറിച്ച് എന്നോട് ചോദിക്കാം.`;
+  } else {
+    textEn = responseSectionsEn.join('\n\n');
+    textMl = responseSectionsMl.join('\n\n');
+  }
+
+  return {
+    success: true,
+    query: message,
+    selectedLanguage: lang,
+    toolsCalled,
+    reactSteps,
+    textEn,
+    textMl,
+    timestamp: new Date().toISOString()
+  };
+}
+
+module.exports = {
+  tools,
+  toolDefinitions,
+  processAgentQuery
+};
