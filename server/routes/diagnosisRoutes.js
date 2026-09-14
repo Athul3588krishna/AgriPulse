@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const Diagnosis = require('../models/Diagnosis');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalProtect } = require('../middleware/authMiddleware');
 
 // Storage config for uploaded leaf images
 const storage = multer.diskStorage({
@@ -28,8 +28,8 @@ const upload = multer({
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
 
-// Upload leaf & process diagnosis via AI Microservice
-router.post('/scan', protect, upload.single('image'), async (req, res) => {
+// Upload leaf & process diagnosis via AI Microservice (supports both logged in and guest demo users)
+router.post('/scan', optionalProtect, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No leaf image uploaded' });
@@ -120,22 +120,40 @@ router.post('/scan', protect, upload.single('image'), async (req, res) => {
       };
     }
 
-    // Save Diagnosis record to Database
-    const diagnosis = await Diagnosis.create({
-      userId: req.user.id,
-      plotId: plotId || null,
+    // Save Diagnosis record to Database if user is logged in
+    let diagnosis = null;
+    if (req.user && req.user.id) {
+      try {
+        diagnosis = await Diagnosis.create({
+          userId: req.user.id,
+          plotId: plotId || null,
+          cropName: cropName || 'General',
+          imageUrl,
+          diseaseName: aiResponse.disease_name,
+          confidenceScore: aiResponse.confidence_score,
+          severityPercentage: aiResponse.severity_percentage,
+          severityLevel: aiResponse.severity_level,
+          weatherContext: weatherInfo,
+          advisory: aiResponse.advisory
+        });
+      } catch (dbErr) {
+        console.warn('Diagnosis DB save notice:', dbErr.message);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      diagnosisId: diagnosis ? diagnosis._id : 'guest_demo_' + Date.now(),
+      cropName,
       imageUrl,
-      cropName: cropName || 'General',
       diseaseName: aiResponse.disease_name,
       confidenceScore: aiResponse.confidence_score,
       severityPercentage: aiResponse.severity_percentage,
       severityLevel: aiResponse.severity_level,
-      weatherSnapshot: weatherInfo,
+      weatherContext: weatherInfo,
       advisory: aiResponse.advisory,
       sources: aiResponse.sources
     });
-
-    res.status(201).json(diagnosis);
   } catch (error) {
     res.status(500).json({ message: 'Error processing scan', error: error.message });
   }

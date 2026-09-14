@@ -109,6 +109,7 @@ export const VoiceAgentModal = () => {
           sender: 'bot',
           textEn: response.data.textEn,
           textMl: response.data.textMl,
+          engine: response.data.engine || 'react-rule-engine',
           toolsCalled: response.data.toolsCalled || [],
           reactSteps: response.data.reactSteps || []
         };
@@ -131,6 +132,7 @@ export const VoiceAgentModal = () => {
         sender: 'bot',
         textEn: fallback.en,
         textMl: fallback.ml,
+        engine: 'react-rule-engine',
         toolsCalled: fallback.tools,
         reactSteps: []
       };
@@ -252,6 +254,20 @@ export const VoiceAgentModal = () => {
                   )}
 
                   <div className="flex flex-col gap-1.5">
+                    {/* AI Engine badge */}
+                    {msg.sender === 'bot' && (
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className={`text-[8.5px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 ${
+                          msg.engine === 'gemini-2.5-flash'
+                            ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        }`}>
+                          <Sparkles className="w-2.5 h-2.5" />
+                          {msg.engine === 'gemini-2.5-flash' ? 'Gemini 2.5 Flash Autonomous Agent' : 'AgriMitra ReAct Engine'}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Tool execution badges for bot */}
                     {msg.sender === 'bot' && msg.toolsCalled && msg.toolsCalled.length > 0 && (
                       <div className="flex flex-wrap gap-1 items-center">

@@ -26,4 +26,17 @@ const adminOnly = (req, res, next) => {
   }
 };
 
-module.exports = { protect, adminOnly };
+const optionalProtect = (req, res, next) => {
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'agripulse_secret_key_prod_2026');
+      req.user = decoded;
+    } catch (error) {
+      // Guest fallback
+    }
+  }
+  next();
+};
+
+module.exports = { protect, adminOnly, optionalProtect };

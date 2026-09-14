@@ -1,24 +1,7 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-
-// Reference databases
-let mandiDatabase = [];
-let schemesDatabase = [];
-
-try {
-  const mandiRoutes = require('../routes/mandiRoutes');
-  mandiDatabase = mandiRoutes.mandiDatabase || [];
-} catch (e) {
-  console.warn('Could not load mandiDatabase from routes:', e.message);
-}
-
-try {
-  const subsidyRoutes = require('../routes/subsidyRoutes');
-  schemesDatabase = subsidyRoutes.schemesDatabase || [];
-} catch (e) {
-  console.warn('Could not load schemesDatabase from routes:', e.message);
-}
+const agmarknetService = require('./agmarknetService');
 
 // Load RAG knowledge data
 let knowledgeBase = [];
@@ -29,6 +12,15 @@ try {
   }
 } catch (e) {
   console.warn('Could not load knowledge_data.json:', e.message);
+}
+
+// Subsidies database reference
+let schemesDatabase = [];
+try {
+  const subsidyRoutes = require('../routes/subsidyRoutes');
+  schemesDatabase = subsidyRoutes.schemesDatabase || [];
+} catch (e) {
+  console.warn('Could not load schemesDatabase from routes:', e.message);
 }
 
 // Kerala district coordinates mapping
@@ -50,7 +42,7 @@ const DISTRICT_COORDS = {
 };
 
 // ==========================================
-// 1. SPECIALIZED AGENT TOOLS
+// 1. SPECIALIZED AUTONOMOUS AGENT TOOLS
 // ==========================================
 
 const tools = {
@@ -59,6 +51,7 @@ const tools = {
    */
   tool_mandi_prices: async ({ crop, district }) => {
     const targetCrop = crop || 'Paddy';
+    const mandiDatabase = agmarknetService.getMandiDatabase();
     let filteredMandis = [...mandiDatabase];
 
     if (district) {
@@ -85,7 +78,6 @@ const tools = {
       }
     });
 
-    // If no exact crop found, list available crops from first mandi
     if (rates.length === 0 && mandiDatabase.length > 0) {
       const firstMandi = mandiDatabase[0];
       const availableCrops = Object.keys(firstMandi.prices || {});
@@ -97,7 +89,6 @@ const tools = {
       };
     }
 
-    // Sort by modal price descending
     rates.sort((a, b) => b.modalPrice - a.modalPrice);
     const topMarket = rates[0] || null;
 
@@ -199,7 +190,7 @@ const tools = {
     }
 
     if (!matchedItem && knowledgeBase.length > 0) {
-      matchedItem = knowledgeBase[0]; // fallback to first well-documented disease
+      matchedItem = knowledgeBase[0];
     }
 
     if (matchedItem) {
@@ -217,7 +208,6 @@ const tools = {
       };
     }
 
-    // Default science-backed guideline
     return {
       status: 'standard_practice',
       diseaseName: disease || 'Fungal Foliar Spot',
@@ -316,7 +306,7 @@ const tools = {
   }
 };
 
-// Tool metadata specifications (for Gemini Function Calling or documentation)
+// Tool metadata specifications
 const toolDefinitions = [
   {
     name: 'tool_mandi_prices',
@@ -324,8 +314,8 @@ const toolDefinitions = [
     parameters: {
       type: 'OBJECT',
       properties: {
-        crop: { type: 'STRING', description: 'Crop name (e.g. Paddy, Tomato, Coconut, Banana, Cardamom, BlackPepper)' },
-        district: { type: 'STRING', description: 'Kerala district name (e.g. Palakkad, Thrissur, Ernakulam, Wayanad)' }
+        crop: { type: 'STRING', description: 'Crop name (e.g. Paddy, Tomato, Coconut, Banana, Cardamom, BlackPepper, Ginger, Potato, GreenChilli)' },
+        district: { type: 'STRING', description: 'Kerala district name (e.g. Palakkad, Thrissur, Ernakulam, Wayanad, Alappuzha)' }
       }
     }
   },
@@ -378,12 +368,208 @@ const toolDefinitions = [
 ];
 
 // ==========================================
-// 2. AUTONOMOUS ReAct ORCHESTRATOR
+// 2. GEMINI LLM FUNCTION CALLING ENGINE
 // ==========================================
 
+let geminiClient = null;
+try {
+  const { GoogleGenAI } = require('@google/genai');
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey && apiKey.trim() && apiKey !== 'your_gemini_api_key_here') {
+    geminiClient = new GoogleGenAI({ apiKey });
+    console.log('🤖 Google Gemini LLM Client initialized with API key.');
+  } else {
+    console.log('ℹ️ GEMINI_API_KEY not configured. Autonomous Agent will use high-precision ReAct rule-based engine.');
+  }
+} catch (err) {
+  console.warn('⚠️ Could not load @google/genai SDK:', err.message);
+}
+
 /**
- * Parses user intent and automatically decides the execution chain
+ * Executes an Autonomous query using Google Gemini Function Calling
  */
+async function processWithGemini({ message, lang = 'en', context = {}, location = null }) {
+  if (!geminiClient) {
+    throw new Error('Gemini client not initialized or GEMINI_API_KEY missing.');
+  }
+
+  const { Type } = require('@google/genai');
+
+  const geminiTools = [{
+    functionDeclarations: [
+      {
+        name: 'tool_mandi_prices',
+        description: 'Query live Kerala APMC Mandi commodity rates, modal prices, and market trends for crops (Paddy, Tomato, Coconut, NendranBanana, GreenChilli, BlackPepper, Cardamom, Ginger, Potato).',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            crop: { type: Type.STRING, description: 'Commodity or crop name' },
+            district: { type: Type.STRING, description: 'Kerala district name (Palakkad, Thrissur, Ernakulam, Alappuzha, Wayanad, etc.)' }
+          }
+        }
+      },
+      {
+        name: 'tool_weather_spray_safety',
+        description: 'Check real-time meteorological conditions and spray safety (SAFE, CAUTION, UNSAFE) based on rain probability, wind speed, and humidity.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            district: { type: Type.STRING, description: 'Kerala district name' }
+          }
+        }
+      },
+      {
+        name: 'tool_disease_advisory',
+        description: 'Access Kerala Agricultural University (KAU) & ICAR certified disease remedies (organic and chemical fungicide dosages).',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            crop: { type: Type.STRING, description: 'Crop name' },
+            disease: { type: Type.STRING, description: 'Disease name or symptom' }
+          }
+        }
+      },
+      {
+        name: 'tool_subsidy_navigator',
+        description: 'Evaluate eligible farmer government subsidies, PMFBY crop insurance compensation calculations, and required documents.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            schemeName: { type: Type.STRING, description: 'Scheme name like pmfby, pm-kisan, subhiksha keralam' },
+            crop: { type: Type.STRING, description: 'Crop grown' },
+            landAcres: { type: Type.NUMBER, description: 'Farmland size in acres' }
+          }
+        }
+      },
+      {
+        name: 'tool_middleman_arbitrage',
+        description: 'Calculate net profit comparison between selling directly to APMC Mandis vs selling to local commission agents/middlemen.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            crop: { type: Type.STRING, description: 'Crop commodity' },
+            quantityKg: { type: Type.NUMBER, description: 'Harvest quantity in kg' }
+          }
+        }
+      }
+    ]
+  }];
+
+  const systemInstruction = `You are AgriMitra 360, an Autonomous Agentic AI Agronomist and Market Intelligence Assistant serving farmers in Kerala, India.
+You understand English, Malayalam script, and colloquial Manglish (e.g. "palakkad paddy rate ethra aanu", "njan inn thakkalikku marunnu thalikkan pattumo", "ente vaazhayil rogam vannu enthu cheyyum", "kisaan subsidy kittumo").
+Whenever answering farmer questions, ALWAYS invoke the appropriate tool(s) to fetch real, grounded facts:
+- For market prices, rates, mandi queries: use tool_mandi_prices
+- For rain, weather, spray safety, wind: use tool_weather_spray_safety
+- For leaf spots, pests, diseases, fungicide cures, organic remedies: use tool_disease_advisory
+- For insurance, PMFBY, PM-KISAN, subsidies: use tool_subsidy_navigator
+- For middleman broker losses, profit calculations: use tool_middleman_arbitrage
+
+After tools return their observations, synthesize a comprehensive bilingual answer formatted EXACTLY as follows:
+[EN]
+(Your English response here with clear bullet points, specific prices/dosages, and empathetic farming advice)
+
+[ML]
+(Your authentic Malayalam response in Malayalam script with clear guidance for the farmer)`;
+
+  // Step 1: Create chat session with Gemini 3.5 Flash and tool definitions
+  const chat = geminiClient.chats.create({
+    model: 'gemini-3.5-flash',
+    config: {
+      systemInstruction,
+      tools: geminiTools
+    }
+  });
+
+  const response = await chat.sendMessage({ message });
+  const reactSteps = [];
+  const toolsCalled = [];
+  let finalSynthesis = '';
+
+  // Step 2: Handle function calls if model invoked tools
+  if (response.functionCalls && response.functionCalls.length > 0) {
+    const functionResponseParts = [];
+
+    for (let i = 0; i < response.functionCalls.length; i++) {
+      const call = response.functionCalls[i];
+      const toolName = call.name;
+      const toolArgs = call.args || {};
+
+      toolsCalled.push(toolName);
+      let observation = {};
+
+      if (tools[toolName]) {
+        try {
+          observation = await tools[toolName](toolArgs);
+        } catch (toolErr) {
+          observation = { error: toolErr.message };
+        }
+      }
+
+      reactSteps.push({
+        stepNumber: i + 1,
+        thought: `Gemini 3.5 Flash Reasoning: Invoking specialized tool '${toolName}' with args: ${JSON.stringify(toolArgs)}.`,
+        tool: toolName,
+        input: toolArgs,
+        observation: observation
+      });
+
+      functionResponseParts.push({
+        functionResponse: {
+          name: toolName,
+          response: { output: observation }
+        }
+      });
+    }
+
+    // Step 3: Send tool observations back to Gemini for grounded synthesis
+    const synthesisResponse = await chat.sendMessage({
+      message: functionResponseParts
+    });
+    finalSynthesis = synthesisResponse.text || '';
+  } else {
+    finalSynthesis = response.text || '';
+  }
+
+  // Parse bilingual sections
+  let textEn = '';
+  let textMl = '';
+
+  if (finalSynthesis.includes('[EN]') && finalSynthesis.includes('[ML]')) {
+    const parts = finalSynthesis.split('[ML]');
+    textEn = parts[0].replace('[EN]', '').trim();
+    textMl = (parts[1] || '').trim();
+  } else if (finalSynthesis.toLowerCase().includes('english') && finalSynthesis.includes('മലയാളം')) {
+    const splitIndex = finalSynthesis.indexOf('മലയാളം');
+    textEn = finalSynthesis.slice(0, splitIndex).replace(/\*\*English:?\*\*/gi, '').trim();
+    textMl = finalSynthesis.slice(splitIndex).replace(/മലയാളം:?/gi, '').replace(/\*\*/g, '').trim();
+  } else {
+    textEn = finalSynthesis;
+    textMl = finalSynthesis;
+  }
+
+  return {
+    success: true,
+    engine: 'gemini-3.5-flash',
+    query: message,
+    selectedLanguage: lang,
+    toolsCalled,
+    reactSteps: reactSteps.length > 0 ? reactSteps : [{
+      stepNumber: 1,
+      thought: 'Direct linguistic resolution handled by Gemini 3.5 Flash.',
+      tool: 'none',
+      input: {},
+      observation: { status: 'direct_response' }
+    }],
+    textEn,
+    textMl,
+    timestamp: new Date().toISOString()
+  };
+}
+
+// ==========================================
+// 3. DETERMINISTIC ReAct RULE ENGINE (FALLBACK)
+// ==========================================
+
 function planAutonomousActions(userQuery) {
   const q = userQuery.toLowerCase();
   const plannedSteps = [];
@@ -406,36 +592,41 @@ function planAutonomousActions(userQuery) {
 
   // Extract Crop Mention
   let detectedCrop = 'Paddy';
-  if (q.includes('tomato') || q.includes('തക്കാളി')) detectedCrop = 'Tomato';
-  else if (q.includes('banana') || q.includes('വാഴ') || q.includes('നേന്ത്ര')) detectedCrop = 'NendranBanana';
-  else if (q.includes('coconut') || q.includes('തേങ്ങ') || q.includes('നാളികേരം')) detectedCrop = 'Coconut';
-  else if (q.includes('pepper') || q.includes('കുരുമുളക്')) detectedCrop = 'BlackPepper';
-  else if (q.includes('cardamom') || q.includes('ഏലം')) detectedCrop = 'Cardamom';
-  else if (q.includes('ginger') || q.includes('ഇഞ്ചി')) detectedCrop = 'Ginger';
-  else if (q.includes('chilli') || q.includes('മുളക്')) detectedCrop = 'GreenChilli';
-  else if (q.includes('potato') || q.includes('ഉരുളക്കിഴങ്ങ്')) detectedCrop = 'Potato';
+  if (q.includes('tomato') || q.includes('തക്കാളി') || q.includes('thakkali')) detectedCrop = 'Tomato';
+  else if (q.includes('banana') || q.includes('വാഴ') || q.includes('നേന്ത്ര') || q.includes('vaazha') || q.includes('nendran')) detectedCrop = 'NendranBanana';
+  else if (q.includes('coconut') || q.includes('തേങ്ങ') || q.includes('നാളികേരം') || q.includes('thenga')) detectedCrop = 'Coconut';
+  else if (q.includes('pepper') || q.includes('കുരുമുളക്') || q.includes('kurumulaku')) detectedCrop = 'BlackPepper';
+  else if (q.includes('cardamom') || q.includes('ഏലം') || q.includes('elam')) detectedCrop = 'Cardamom';
+  else if (q.includes('ginger') || q.includes('ഇഞ്ചി') || q.includes('inchi')) detectedCrop = 'Ginger';
+  else if (q.includes('chilli') || q.includes('മുളക്') || q.includes('mulak')) detectedCrop = 'GreenChilli';
+  else if (q.includes('potato') || q.includes('ഉരുളക്കിഴങ്ങ്') || q.includes('urula')) detectedCrop = 'Potato';
+  else if (q.includes('paddy') || q.includes('നെല്ല്') || q.includes('nellu') || q.includes('ari')) detectedCrop = 'Paddy';
 
   // 1. Mandi Price Intent
   const hasMandiIntent = q.includes('mandi') || q.includes('price') || q.includes('rate') || 
-    q.includes('മാർക്കറ്റ്') || q.includes('വില') || q.includes('വിപണി') || q.includes('ക്വിന്റൽ');
+    q.includes('മാർക്കറ്റ്') || q.includes('വില') || q.includes('വിപണി') || q.includes('ക്വിന്റൽ') ||
+    q.includes('vila') || q.includes('ethra');
 
   // 2. Weather & Spray Timing Intent
   const hasWeatherIntent = q.includes('weather') || q.includes('rain') || q.includes('spray') || 
-    q.includes('മഴ') || q.includes('കാലാവസ്ഥ') || q.includes('തളിക്ക') || q.includes('കാറ്റ്');
+    q.includes('മഴ') || q.includes('കാലാവസ്ഥ') || q.includes('തളിക്ക') || q.includes('കാറ്റ്') ||
+    q.includes('mazha') || q.includes('thalikka') || q.includes('marunnu thalikk');
 
   // 3. Disease & Treatment Intent
   const hasDiseaseIntent = q.includes('disease') || q.includes('leaf') || q.includes('blight') || 
     q.includes('spot') || q.includes('cure') || q.includes('medicine') || q.includes('രോഗം') || 
-    q.includes('ഇല') || q.includes('കുമിൾ') || q.includes('മരുന്ന്') || q.includes('പ്രതിവിധി');
+    q.includes('ഇല') || q.includes('കുമിൾ') || q.includes('മരുന്ന്') || q.includes('പ്രതിവിധി') ||
+    q.includes('rogam') || q.includes('ila') || q.includes('puzhu') || q.includes('keedam');
 
   // 4. Subsidy & Insurance Intent
   const hasSubsidyIntent = q.includes('subsidy') || q.includes('scheme') || q.includes('pmfby') || 
     q.includes('pm-kisan') || q.includes('insurance') || q.includes('സബ്‌സിഡി') || 
-    q.includes('പദ്ധതി') || q.includes('ഇൻഷുറൻസ്') || q.includes('നഷ്ടപരിഹാരം');
+    q.includes('പദ്ധതി') || q.includes('ഇൻഷുറൻസ്') || q.includes('നഷ്ടപരിഹാരം') ||
+    q.includes('sahayam') || q.includes('kisan');
 
   // 5. Arbitrage / Middleman Intent
   const hasArbitrageIntent = q.includes('middleman') || q.includes('broker') || q.includes('profit') || 
-    q.includes('ഇടനില') || q.includes('ലാഭം') || q.includes('കമ്മീഷൻ');
+    q.includes('ഇടനില') || q.includes('ലാഭം') || q.includes('കമ്മീഷൻ') || q.includes('labham');
 
   // Multi-step action planning
   if (hasMandiIntent) {
@@ -491,16 +682,14 @@ function planAutonomousActions(userQuery) {
 }
 
 /**
- * Executes an Autonomous ReAct conversation cycle
+ * Deterministic ReAct execution fallback
  */
-async function processAgentQuery({ message, lang = 'en', context = {}, location = null }) {
+async function processReActFallback({ message, lang = 'en', context = {}, location = null }) {
   const reactSteps = [];
   const toolsCalled = [];
 
-  // Step 1: Reason and create tool execution plan
   const plannedSteps = planAutonomousActions(message);
 
-  // Step 2: Act - Run all autonomous tools
   for (let i = 0; i < plannedSteps.length; i++) {
     const stepPlan = plannedSteps[i];
     const toolFn = tools[stepPlan.tool];
@@ -528,10 +717,6 @@ async function processAgentQuery({ message, lang = 'en', context = {}, location 
       }
     }
   }
-
-  // Step 3: Synthesize final answer based on observations
-  let textEn = '';
-  let textMl = '';
 
   const mandiObs = reactSteps.find(s => s.tool === 'tool_mandi_prices')?.observation;
   const weatherObs = reactSteps.find(s => s.tool === 'tool_weather_spray_safety')?.observation;
@@ -568,6 +753,9 @@ async function processAgentQuery({ message, lang = 'en', context = {}, location 
     responseSectionsMl.push(`💰 **ലാഭക്കണക്ക്**: ${arbitrageObs.recommendationMl}`);
   }
 
+  let textEn = '';
+  let textMl = '';
+
   if (responseSectionsEn.length === 0) {
     textEn = `AgriMitra Autonomous Agent analyzed your query. You can ask me for live Agmarknet Mandi prices, real-time spray safety weather checks, KAU disease treatment dosages, and PMFBY government subsidies.`;
     textMl = `അഗ്രിമിത്ര ഓട്ടോണമസ് ഏജന്റ് നിങ്ങളുടെ ചോദ്യം പരിശോധിച്ചു. തത്സമയ മണ്ടി വിലകൾ, കാലാവസ്ഥാ സ്പ്രേ സുരക്ഷ, വിള രോഗ പ്രതിവിധികൾ, സർക്കാർ സബ്‌സിഡികൾ എന്നിവയെക്കുറിച്ച് എന്നോട് ചോദിക്കാം.`;
@@ -578,6 +766,7 @@ async function processAgentQuery({ message, lang = 'en', context = {}, location 
 
   return {
     success: true,
+    engine: 'react-rule-engine',
     query: message,
     selectedLanguage: lang,
     toolsCalled,
@@ -588,8 +777,26 @@ async function processAgentQuery({ message, lang = 'en', context = {}, location 
   };
 }
 
+/**
+ * Main Entry Point: Attempts Gemini LLM Function Calling, falls back to ReAct Rule Engine
+ */
+async function processAgentQuery({ message, lang = 'en', context = {}, location = null }) {
+  if (geminiClient) {
+    try {
+      console.log(`🤖 Attempting Gemini LLM Function Calling for: "${message}"`);
+      return await processWithGemini({ message, lang, context, location });
+    } catch (err) {
+      console.warn(`⚠️ Gemini Function Calling error (${err.message}), seamlessly switching to ReAct fallback engine.`);
+    }
+  }
+
+  return await processReActFallback({ message, lang, context, location });
+}
+
 module.exports = {
   tools,
   toolDefinitions,
-  processAgentQuery
+  processAgentQuery,
+  processWithGemini,
+  processReActFallback
 };

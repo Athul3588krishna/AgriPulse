@@ -35,6 +35,59 @@ export const DiagnosisPage = () => {
     }
   };
 
+  // Generate synthetic diseased leaf sample on the fly for instant hackathon demos
+  const loadSampleLeaf = (type) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 400;
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, 400, 400);
+
+    // Leaf body
+    ctx.beginPath();
+    ctx.ellipse(200, 200, 110, 160, Math.PI / 12, 0, 2 * Math.PI);
+    ctx.fillStyle = type === 'corn' ? '#65a30d' : '#22c55e';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#15803d';
+    ctx.stroke();
+
+    // Leaf veins
+    ctx.beginPath();
+    ctx.moveTo(200, 50);
+    ctx.lineTo(200, 350);
+    ctx.strokeStyle = '#166534';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Necrotic lesion spots (HSV yellow/brown)
+    const lesionCount = type === 'tomato' ? 14 : type === 'potato' ? 18 : 10;
+    for (let i = 0; i < lesionCount; i++) {
+      const lx = 140 + Math.random() * 120;
+      const ly = 100 + Math.random() * 200;
+      const lr = 8 + Math.random() * 16;
+      ctx.beginPath();
+      ctx.arc(lx, ly, lr, 0, 2 * Math.PI);
+      ctx.fillStyle = i % 2 === 0 ? '#854d0e' : '#a16207';
+      ctx.fill();
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    canvas.toBlob((blob) => {
+      const fileName = `${type}_diseased_sample_leaf.png`;
+      const file = new File([blob], fileName, { type: 'image/png' });
+      handleFileChange(file);
+      if (type === 'tomato') setCropName('Tomato');
+      else if (type === 'potato') setCropName('Potato');
+      else if (type === 'corn') setCropName('Corn');
+    }, 'image/png');
+  };
+
   const handleScanSubmit = async (e) => {
     e.preventDefault();
     if (!selectedFile) {
@@ -167,6 +220,37 @@ export const DiagnosisPage = () => {
                   <option key={p._id} value={p._id}>{p.name} ({p.cropType})</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          {/* Hackathon Quick Demo Sample Leaves */}
+          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>1-Click Hackathon Demo Samples:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => loadSampleLeaf('tomato')}
+                className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95 flex items-center gap-1"
+              >
+                <span>🍅 Tomato Blight</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => loadSampleLeaf('potato')}
+                className="px-2.5 py-1 bg-white hover:bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95 flex items-center gap-1"
+              >
+                <span>🥔 Potato Blight</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => loadSampleLeaf('corn')}
+                className="px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95 flex items-center gap-1"
+              >
+                <span>🌽 Corn Rust</span>
+              </button>
             </div>
           </div>
 
