@@ -14,6 +14,7 @@ const subsidyRoutes = require('./routes/subsidyRoutes');
 const agentRoutes = require('./routes/agentRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const marketplaceRoutes = require('./routes/marketplaceRoutes');
+const telegramRoutes = require('./routes/telegramRoutes');
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use('/api/subsidies', subsidyRoutes);
 app.use('/api/agent', agentRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

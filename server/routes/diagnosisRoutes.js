@@ -8,6 +8,7 @@ const Diagnosis = require('../models/Diagnosis');
 const User = require('../models/User');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
 const { validateUploadedLeaf } = require('../services/leafValidatorService');
+const telegramService = require('../services/telegramService');
 
 // Storage config for uploaded leaf images
 const storage = multer.diskStorage({
@@ -191,6 +192,27 @@ router.post('/scan', optionalProtect, upload.single('image'), async (req, res) =
     if (userDoc) {
       userDoc.monthlyScanCount = (userDoc.monthlyScanCount || 0) + 1;
       await userDoc.save();
+    }
+
+    // Automatically dispatch real-time alert to Telegram bot (@Datasqdbot)
+    try {
+      const farmerName = userDoc ? userDoc.name : (req.body.farmerName || 'കർഷകൻ (Farmer)');
+      const locationText = req.body.location || (req.body.district ? `${req.body.district}, Kerala` : 'Kerala, India');
+
+      telegramService.sendDiagnosisAlert(telegramService.TELEGRAM_DEFAULT_CHAT_ID, {
+        crop: cropName || 'General',
+        disease: aiResponse.disease_name,
+        confidence: aiResponse.confidence_score,
+        severity: aiResponse.severity_percentage,
+        severityLevel: aiResponse.severity_level,
+        advisory: aiResponse.advisory,
+        location: locationText,
+        farmerName
+      }, 'ml').catch(tErr => {
+        console.warn('[TelegramAutoDispatch] Async delivery note:', tErr.message);
+      });
+    } catch (autoErr) {
+      console.warn('[TelegramAutoDispatch] Dispatch note:', autoErr.message);
     }
 
     res.status(201).json({

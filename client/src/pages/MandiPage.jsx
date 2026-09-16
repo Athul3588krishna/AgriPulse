@@ -8,9 +8,11 @@ import {
   TrendingUp, TrendingDown, Minus, MapPin, Calculator, RefreshCw, Volume2, VolumeX, 
   ArrowRight, ShieldCheck, DollarSign, Store, Sparkles, AlertCircle, Globe 
 } from 'lucide-react';
+import { useDeviceLocation, KERALA_DISTRICTS } from '../hooks/useDeviceLocation';
 
 export const MandiPage = () => {
   const { t, lang, speakText, stopSpeaking, isSpeaking } = useLanguage();
+  const deviceLocation = useDeviceLocation();
 
   const [pricesData, setPricesData] = useState([]);
   const [commoditiesList, setCommoditiesList] = useState([]);
@@ -32,6 +34,12 @@ export const MandiPage = () => {
   const [farmerLocation, setFarmerLocation] = useState('Ernakulam');
   const [arbitrageResult, setArbitrageResult] = useState(null);
   const [loadingArbitrage, setLoadingArbitrage] = useState(false);
+
+  useEffect(() => {
+    if (deviceLocation.district) {
+      setFarmerLocation(deviceLocation.district);
+    }
+  }, [deviceLocation.district]);
 
   // Fetch current Mandi prices
   const fetchPrices = async () => {
@@ -209,18 +217,33 @@ export const MandiPage = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {deviceLocation.district && (
+            <button
+              onClick={() => setSelectedDistrict(selectedDistrict === deviceLocation.district ? '' : deviceLocation.district)}
+              className={`text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 border ${
+                selectedDistrict === deviceLocation.district
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-600/30'
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+              }`}
+              title={lang === 'ml' ? 'എന്റെ ലൈവ് ജില്ലയിലെ മണ്ടികൾ കാണുക' : 'Filter by my live district'}
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>{lang === 'ml' ? `${deviceLocation.districtMl} (GPS)` : `${deviceLocation.district} (GPS)`}</span>
+            </button>
+          )}
+
           <select
             value={selectedDistrict}
             onChange={(e) => setSelectedDistrict(e.target.value)}
             className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="">{t('allDistricts')}</option>
-            <option value="Ernakulam">Ernakulam</option>
-            <option value="Thrissur">Thrissur</option>
-            <option value="Palakkad">Palakkad</option>
-            <option value="Alappuzha">Alappuzha</option>
-            <option value="Wayanad">Wayanad</option>
+            {KERALA_DISTRICTS.map((d) => (
+              <option key={d.id} value={d.nameEn}>
+                {lang === 'ml' ? `${d.nameMl} (${d.nameEn})` : d.nameEn}
+              </option>
+            ))}
           </select>
 
           <button
@@ -353,11 +376,11 @@ export const MandiPage = () => {
                   onChange={(e) => setFarmerLocation(e.target.value)}
                   className="w-full text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="Ernakulam">Ernakulam</option>
-                  <option value="Thrissur">Thrissur</option>
-                  <option value="Palakkad">Palakkad</option>
-                  <option value="Alappuzha">Alappuzha</option>
-                  <option value="Wayanad">Wayanad</option>
+                  {KERALA_DISTRICTS.map((d) => (
+                    <option key={d.id} value={d.nameEn}>
+                      {lang === 'ml' ? `${d.nameMl} (${d.nameEn})` : d.nameEn}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

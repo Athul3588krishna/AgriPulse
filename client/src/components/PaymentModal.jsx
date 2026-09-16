@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +11,7 @@ import {
 export const PaymentModal = ({ plan, billingCycle = 'monthly', onClose, onSuccess }) => {
   const { lang } = useLanguage();
   const { user, updateUserSubscription } = useAuth();
+  const navigate = useNavigate();
 
   const [paymentMethod, setPaymentMethod] = useState('UPI (Google Pay / PhonePe)');
   const [processing, setProcessing] = useState(false);
@@ -21,6 +23,11 @@ export const PaymentModal = ({ plan, billingCycle = 'monthly', onClose, onSucces
     : (billingCycle === 'yearly' ? 19999 : 1999);
 
   const handleSimulatePayment = async () => {
+    if (!user) {
+      setError(lang === 'ml' ? 'ദയവായി ലോഗിൻ ചെയ്യുക.' : 'Please log in to upgrade your subscription plan.');
+      return;
+    }
+
     setProcessing(true);
     setError('');
 
@@ -47,7 +54,12 @@ export const PaymentModal = ({ plan, billingCycle = 'monthly', onClose, onSucces
         if (onSuccess) onSuccess(res.data);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Payment simulation failed. Please try again.');
+      const errMsg = err.response?.data?.message;
+      if (err.response?.status === 401 || (errMsg && errMsg.toLowerCase().includes('token'))) {
+        setError(lang === 'ml' ? 'ദയവായി ലോഗിൻ ചെയ്യുക.' : 'Please log in to upgrade your subscription plan.');
+      } else {
+        setError(errMsg || 'Payment simulation failed. Please try again.');
+      }
     } finally {
       setProcessing(false);
     }
@@ -84,7 +96,50 @@ export const PaymentModal = ({ plan, billingCycle = 'monthly', onClose, onSucces
         </div>
 
         {/* Content */}
-        {!successData ? (
+        {!user ? (
+          <div className="p-8 text-center space-y-6">
+            <div className="w-16 h-16 rounded-3xl bg-amber-50 border border-amber-200 text-amber-600 mx-auto flex items-center justify-center shadow-sm">
+              <Lock className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-xl font-black text-slate-900">
+                {lang === 'ml' ? 'ദയവായി ലോഗിൻ ചെയ്യുക' : 'Please Log In to Upgrade'}
+              </h4>
+              <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
+                {lang === 'ml'
+                  ? 'നിങ്ങളുടെ അക്കൗണ്ടിലേക്ക് സബ്‌സ്‌ക്രിപ്ഷൻ പ്ലാൻ ആക്റ്റിവേറ്റ് ചെയ്യാൻ ആദ്യം ലോഗിൻ ചെയ്യേണ്ടതുണ്ട്.'
+                  : 'You need an active farmer account to subscribe to AgriPulse Pro or Enterprise plans.'}
+              </p>
+            </div>
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                {lang === 'ml' ? 'റദ്ദാക്കുക' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate('/login', {
+                    state: {
+                      from: '/pricing',
+                      message: lang === 'ml'
+                        ? 'സബ്‌സ്‌ക്രിപ്ഷൻ പ്ലാൻ അപ്‌ഗ്രേഡ് ചെയ്യാൻ ദയവായി ലോഗിൻ ചെയ്യുക.'
+                        : 'Please log in to upgrade your subscription plan.'
+                    }
+                  });
+                }}
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md shadow-emerald-600/30 transition-all flex items-center gap-2"
+              >
+                <span>{lang === 'ml' ? 'ലോഗിൻ ചെയ്യുക' : 'Log In Now'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ) : !successData ? (
           <div className="p-6 space-y-5">
             {error && (
               <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +12,7 @@ import {
 export const PricingPage = () => {
   const { lang, t } = useLanguage();
   const { user, refreshUser } = useAuth();
+  const navigate = useNavigate();
 
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState(null);
@@ -29,7 +31,33 @@ export const PricingPage = () => {
     } catch (e) {}
   };
 
+  const handlePlanSelect = (plan) => {
+    if (!user) {
+      navigate('/login', {
+        state: {
+          from: '/pricing',
+          message: lang === 'ml' 
+            ? 'പ്ലാൻ അപ്‌ഗ്രേഡ് ചെയ്യാൻ ദയവായി ലോഗിൻ ചെയ്യുക.' 
+            : 'Please log in to upgrade your subscription plan.'
+        }
+      });
+      return;
+    }
+    setSelectedPlanForCheckout(plan);
+  };
+
   const handleDemoReset = async (tier = 'free', scans = 0) => {
+    if (!user) {
+      navigate('/login', {
+        state: {
+          from: '/pricing',
+          message: lang === 'ml' 
+            ? 'സബ്‌സ്‌ക്രിപ്ഷൻ പ്ലാൻ മാറ്റാൻ ദയവായി ലോഗിൻ ചെയ്യുക.' 
+            : 'Please log in to manage subscription plans.'
+        }
+      });
+      return;
+    }
     setResetting(true);
     try {
       await axios.post('/api/subscription/reset-demo', { setTier: tier, setScans: scans });
@@ -241,7 +269,7 @@ export const PricingPage = () => {
                     </button>
                   ) : (
                     <button
-                      onClick={() => setSelectedPlanForCheckout(plan)}
+                      onClick={() => handlePlanSelect(plan)}
                       className={`w-full py-3.5 rounded-2xl text-xs font-black shadow-md transition-all flex items-center justify-center gap-2 ${
                         plan.isPopular
                           ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-600/30 hover:scale-[1.02]'

@@ -4,11 +4,12 @@ import axios from 'axios';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useLanguage } from '../context/LanguageContext';
-import { useAuth } from '../context/AuthContext';
-import { Leaf, Upload, Volume2, VolumeX, Mic, MicOff, Download, CheckCircle, AlertTriangle, CloudSun, Shield, FileText, Sparkles, RefreshCw, Landmark, ArrowRight, Zap, ShoppingBag, Star, Lock } from 'lucide-react';
+import { Leaf, Upload, Volume2, VolumeX, Mic, MicOff, Download, CheckCircle, AlertTriangle, CloudSun, Shield, FileText, Sparkles, RefreshCw, Landmark, ArrowRight, Zap, ShoppingBag, Star, Lock, Send, ExternalLink, MapPin } from 'lucide-react';
+import { useDeviceLocation } from '../hooks/useDeviceLocation';
 
 export const DiagnosisPage = () => {
   const { t, lang, speakText, stopSpeaking, isSpeaking, startListening, isListening } = useLanguage();
+  const deviceLocation = useDeviceLocation();
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -26,6 +27,13 @@ export const DiagnosisPage = () => {
   const { user } = useAuth();
   const [quotaInfo, setQuotaInfo] = useState({ tier: user?.subscriptionTier || 'free', count: user?.monthlyScanCount || 0, limit: 5 });
   const [quotaModalOpen, setQuotaModalOpen] = useState(false);
+  const [sendingTelegram, setSendingTelegram] = useState(false);
+  const [telegramSent, setTelegramSent] = useState(false);
+  const [telegramFeedback, setTelegramFeedback] = useState('');
+  const [telegramModalOpen, setTelegramModalOpen] = useState(false);
+  const [recentChats, setRecentChats] = useState([]);
+  const [selectedChatId, setSelectedChatId] = useState('');
+  const [customChatId, setCustomChatId] = useState('');
 
   useEffect(() => {
     axios.get('/api/plots').then((res) => setPlots(res.data)).catch(() => {});
@@ -274,6 +282,11 @@ export const DiagnosisPage = () => {
     formData.append('image', selectedFile);
     formData.append('cropName', cropName);
     formData.append('plotId', selectedPlot);
+    if (deviceLocation.coords) {
+      formData.append('latitude', deviceLocation.coords.lat);
+      formData.append('longitude', deviceLocation.coords.lon);
+      formData.append('location', deviceLocation.locationName || `${deviceLocation.district}, Kerala`);
+    }
 
     try {
       const res = await axios.post('/api/diagnoses/scan', formData, {
@@ -349,6 +362,59 @@ export const DiagnosisPage = () => {
       alert('Could not export PDF. Please try again.');
     } finally {
       setDownloadingPdf(false);
+    }
+  };
+
+  const handleOpenTelegramModal = async () => {
+    setTelegramFeedback('');
+    setTelegramModalOpen(true);
+    try {
+      const res = await axios.get('/api/telegram/recent-chats');
+      if (res.data.success && res.data.chats) {
+        setRecentChats(res.data.chats);
+        if (res.data.defaultChatId) {
+          setSelectedChatId(res.data.defaultChatId);
+        } else if (res.data.chats.length > 0) {
+          setSelectedChatId(res.data.chats[0].chatId);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load chats:', e);
+    }
+  };
+
+  const handleSendTelegram = async () => {
+    if (!result) return;
+    setSendingTelegram(true);
+    setTelegramFeedback('');
+    try {
+      const targetChat = customChatId.trim() || selectedChatId;
+      const payload = {
+        chatId: targetChat || undefined,
+        crop: result.cropName || cropName,
+        disease: result.diseaseName,
+        confidence: result.confidenceScore,
+        severity: result.severityPercentage,
+        severityLevel: result.severityLevel,
+        advisory: result.advisory,
+        location: deviceLocation.locationName || `${deviceLocation.district}, Kerala`,
+        lang
+      };
+      const res = await axios.post('/api/telegram/send-diagnosis', payload);
+      if (res.data.success) {
+        setTelegramSent(true);
+        setTelegramFeedback(lang === 'ml' 
+          ? 'റിപ്പോർട്ട് വിജയകരമായി ടെലിഗ്രാമിലേക്ക് അയച്ചു! (@Datasqdbot പരിശോധിക്കുക)' 
+          : 'Report sent to Telegram successfully! Check @Datasqdbot');
+        setTimeout(() => {
+          setTelegramModalOpen(false);
+          setTelegramSent(false);
+        }, 2500);
+      }
+    } catch (err) {
+      setTelegramFeedback(err.response?.data?.message || (lang === 'ml' ? 'ടെലിഗ്രാമിലേക്ക് അയക്കാൻ സാധിച്ചില്ല.' : 'Failed to send to Telegram.'));
+    } finally {
+      setSendingTelegram(false);
     }
   };
 
@@ -598,7 +664,16 @@ export const DiagnosisPage = () => {
                 Diagnosis Confirmed
               </span>
               <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mt-2">{result.diseaseName}</h2>
-              <p className="text-xs text-slate-500">Crop: {result.cropName} • Analysis Time: Just Now</p>
+              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500">
+                <span>Crop: {result.cropName}</span>
+                <span>•</span>
+                <span className="flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                  <MapPin className="w-3 h-3 text-emerald-600" />
+                  <span>{deviceLocation.locationName || `${deviceLocation.district}, Kerala`}</span>
+                </span>
+                <span>•</span>
+                <span>Just Now</span>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -619,6 +694,14 @@ export const DiagnosisPage = () => {
               >
                 <Download className="w-4 h-4 text-emerald-400" />
                 <span>{downloadingPdf ? 'Generating PDF...' : t('downloadPdf')}</span>
+              </button>
+
+              <button
+                onClick={handleOpenTelegramModal}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#0088cc] hover:bg-[#0077b5] text-white shadow-sm transition-all"
+              >
+                <Send className="w-4 h-4 text-white" />
+                <span>{lang === 'ml' ? 'ടെലിഗ്രാമിലേക്ക് അയക്കുക' : 'Send to Telegram'}</span>
               </button>
             </div>
           </div>
@@ -819,6 +902,162 @@ export const DiagnosisPage = () => {
                 <span>Upgrade (₹49/mo)</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Telegram Alert Modal */}
+      {telegramModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-sky-100 overflow-hidden p-6 text-center space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-2xl bg-[#0088cc] text-white flex items-center justify-center shadow-md shadow-sky-500/20">
+                  <Send className="w-5 h-5 -translate-x-0.5 translate-y-0.5" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    {lang === 'ml' ? 'ടെലിഗ്രാം അലേർട്ട്' : 'Send to Telegram'}
+                  </h3>
+                  <a
+                    href="https://t.me/Datasqdbot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-[#0088cc] font-bold hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>@Datasqdbot</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+              <button
+                onClick={() => setTelegramModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-bold transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Explainer Box */}
+            <div className="p-3.5 bg-sky-50/70 rounded-2xl border border-sky-100 text-left text-xs space-y-1.5 text-slate-700">
+              <p className="font-bold text-sky-950">
+                {lang === 'ml' ? '📲 നിങ്ങളുടെ ഫോണിൽ തത്സമയ റിപ്പോർട്ട്:' : '📲 Instant Mobile Diagnosis Report:'}
+              </p>
+              <p className="text-[11px] leading-relaxed text-slate-600">
+                {lang === 'ml'
+                  ? 'രോഗവിവരണം, നാശനഷ്ട തോത് (Severity %), KAU സർട്ടിഫൈഡ് ജൈവ-രാസ ചികിത്സകൾ എന്നിവ നേരിട്ട് ലഭിക്കും.'
+                  : 'Receive disease name, OpenCV damage %, and certified KAU organic & chemical spray advisory direct on Telegram.'}
+              </p>
+              <div className="pt-1 flex items-center gap-2">
+                <span className="text-[10px] bg-sky-200/70 text-sky-900 px-2 py-0.5 rounded font-bold">100% സൗജന്യം</span>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">തത്സമയ ഡെലിവറി</span>
+              </div>
+            </div>
+
+            {/* Status / Feedback message */}
+            {telegramFeedback && (
+              <div className={`p-3 rounded-xl text-xs font-bold text-left ${
+                telegramSent ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+              }`}>
+                {telegramFeedback}
+              </div>
+            )}
+
+            {/* Chat Selection */}
+            <div className="space-y-2 text-left">
+              <label className="text-xs font-bold text-slate-700 block">
+                {lang === 'ml' ? 'ടെലിഗ്രാം ചാറ്റ് തിരഞ്ഞെടുക്കുക:' : 'Select Telegram Chat ID:'}
+              </label>
+
+              {recentChats.length > 0 ? (
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {recentChats.map((c) => (
+                    <label
+                      key={c.chatId}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        selectedChatId === c.chatId
+                          ? 'border-[#0088cc] bg-sky-50/80 ring-1 ring-[#0088cc]'
+                          : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="selectedChat"
+                          checked={selectedChatId === c.chatId}
+                          onChange={() => {
+                            setSelectedChatId(c.chatId);
+                            setCustomChatId('');
+                          }}
+                          className="text-[#0088cc] focus:ring-[#0088cc]"
+                        />
+                        <div>
+                          <div className="text-xs font-extrabold text-slate-900">{c.firstName}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">Chat ID: {c.chatId}</div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Active</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-slate-500 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  {lang === 'ml'
+                    ? 'ടെലിഗ്രാമിൽ @Datasqdbot തുറന്ന് /start അയക്കുക.'
+                    : 'Please open @Datasqdbot on Telegram and send /start to link your chat.'}
+                </div>
+              )}
+
+              {/* Custom Chat ID input toggle */}
+              <div className="pt-1">
+                <input
+                  type="text"
+                  placeholder={lang === 'ml' ? 'അല്ലെങ്കിൽ മറ്റൊരു Chat ID നൽകുക' : 'Or enter custom Telegram Chat ID'}
+                  value={customChatId}
+                  onChange={(e) => setCustomChatId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#0088cc]"
+                />
+              </div>
+            </div>
+
+            {/* Quick Step Guide */}
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-left text-[11px] text-slate-600 flex items-center justify-between">
+              <span>{lang === 'ml' ? 'ബോട്ട് സ്റ്റാർട്ട് ചെയ്തിട്ടില്ലെങ്കിൽ:' : 'Not started the bot yet?'}</span>
+              <a
+                href="https://t.me/Datasqdbot"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold transition-colors inline-flex items-center gap-1"
+              >
+                <span>Open @Datasqdbot</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setTelegramModalOpen(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                {lang === 'ml' ? 'ക്ലോസ്' : 'Close'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSendTelegram}
+                disabled={sendingTelegram || (!selectedChatId && !customChatId)}
+                className="flex-1 py-2.5 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-xs font-black shadow-md shadow-sky-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>
+                  {sendingTelegram
+                    ? (lang === 'ml' ? 'അയക്കുന്നു...' : 'Sending...')
+                    : (lang === 'ml' ? 'ഇപ്പോൾ അയക്കുക' : 'Send Now')}
+                </span>
+              </button>
             </div>
           </div>
         </div>
