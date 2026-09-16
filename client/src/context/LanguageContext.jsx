@@ -9,7 +9,7 @@ export const dictionary = {
     home: 'Home',
     dashboard: 'Farmer Dashboard',
     scan: 'Leaf Diagnostics',
-    mandi: 'Mandi Intelligence',
+    mandi: 'Vipani Mitra',
     subsidies: 'Subsidy Navigator',
     voiceAgent: 'Vernacular Voice AI',
     plots: 'Farm Plots',
@@ -37,8 +37,8 @@ export const dictionary = {
     userDirectory: 'Registered Farmers & User Directory',
     langSwitch: 'മലയാളം',
     
-    // Mandi Intelligence terms
-    mandiTitle: 'Dynamic Market Intelligence & Mandi Optimization',
+    // Vipani Mitra (Market Intelligence) terms
+    mandiTitle: 'Vipani Mitra: Dynamic Market Intelligence & Price Optimization',
     mandiSubtitle: 'Real-time Agmarknet commodity feeds, 7-day predictive volatility trends, and net-profit market routing to bypass middlemen.',
     selectCommodity: 'Select Commodity',
     allDistricts: 'All Districts',
@@ -73,7 +73,37 @@ export const dictionary = {
     requiredDocs: 'Required Application Documents',
     authorityOffice: 'Nodal Authority / Krishi Bhavan',
     claimInsuranceTitle: 'PMFBY Digital Insurance Damage Proof',
-    claimInsuranceDesc: 'Detected severe crop disease can be directly linked to a fast-track PMFBY crop loss insurance claim.'
+    claimInsuranceDesc: 'Detected severe crop disease can be directly linked to a fast-track PMFBY crop loss insurance claim.',
+
+    // Marketplace & 15% Commission terms
+    marketplace: 'Wholesale Market',
+    pricing: 'Plans & Pricing',
+    marketplaceTitle: 'Factory-Direct Bulk Input Marketplace',
+    marketplaceSubtitle: 'Direct wholesale materials for Farmers and FPOs at manufacturer cost + transparent 15% AgriPulse facilitation fee. Slashes up to 35% in retail dealer margins.',
+    outsideMarketPrice: 'Outside Retail Price',
+    factoryCost: 'Direct Factory Cost',
+    platformFee: 'AgriPulse Platform Fee (15%)',
+    finalPrice: 'Farmer / FPO Final Price',
+    youSave: 'You Save',
+    buyBulkBtn: 'Order in Bulk (Farmer / FPO)',
+    minOrder: 'Min. Order',
+    inStock: 'In Stock',
+    filterAll: 'All Wholesale Inputs',
+    filterBio: 'Bio-Fungicides & Organic',
+    filterSeeds: 'High-Yield Seeds',
+    filterFertilizers: 'Fertilizers & Minerals',
+    filterEquipment: 'Machinery & Drip Kits',
+    buyerTypeFarmer: 'Individual Farmer',
+    buyerTypeFpo: 'FPO / Farmers Cooperative Society',
+    orderConfirmationTitle: 'Bulk Order Confirmed!',
+    orderConfirmationDesc: 'Your order has been forwarded to the certified manufacturer for dispatch.',
+    totalCommunitySavings: 'Total Community Savings',
+    totalCommissionEarned: 'Platform 15% Commission',
+    leafValidationError: 'Invalid Image: No Plant Leaf Detected',
+    leafValidationDesc: 'AgriPulse AI only analyzes agricultural crop leaves for disease diagnosis. Non-plant images (humans, vehicles, documents, animals, or plain surfaces) cannot be scanned.',
+    testNonLeafBtn: 'Test Non-Leaf Sample (Car / Object)',
+    nonLeafDetectedAs: 'Detected as',
+    retryWithLeaf: 'Please upload a clear, focused photo of a crop leaf.'
   },
   ml: {
     appName: 'അഗ്രിമിത്ര 360',
@@ -81,12 +111,14 @@ export const dictionary = {
     home: 'ഹോം',
     dashboard: 'കർഷക ഡാഷ്‌ബോർഡ്',
     scan: 'രോഗനിർണ്ണയം',
-    mandi: 'മണ്ടി വിപണി വില',
+    mandi: 'വിപണി മിത്ര (Vipani Mitra)',
     subsidies: 'സബ്‌സിഡി നാവിഗേറ്റർ',
     voiceAgent: 'വോയ്‌സ് അസിസ്റ്റന്റ്',
     plots: 'കൃഷിയിടങ്ങൾ',
     history: 'രോഗ ചരിത്രം',
     admin: 'അഡ്മിൻ പാനൽ',
+    marketplace: 'ബൾക്ക് മാർക്കറ്റ്',
+    pricing: 'പ്ലാനുകൾ',
     login: 'ലോഗിൻ',
     register: 'രജിസ്റ്റർ',
     logout: 'ലോഗ് ഔട്ട്',
@@ -109,8 +141,8 @@ export const dictionary = {
     userDirectory: 'രജിസ്റ്റർ ചെയ്ത കർഷകരുടെ വിവരങ്ങൾ',
     langSwitch: 'English',
 
-    // Mandi Intelligence terms
-    mandiTitle: 'തത്സമയ വിപണി വിലനിലവാരവും മണ്ടി ഒപ്റ്റിമൈസേഷനും',
+    // Vipani Mitra terms
+    mandiTitle: 'വിപണി മിത്ര: തത്സമയ വിപണി വിലനിലവാരവും ഒപ്റ്റിമൈസേഷനും',
     mandiSubtitle: 'Agmarknet തത്സമയ വിളവിലകൾ, 7 ദിവസത്തെ വില പ്രവചനം, ഇടനിലക്കാരെ ഒഴിവാക്കി പരമാവധി ലാഭം തരുന്ന മാർക്കറ്റ് തിരഞ്ഞെടുക്കൽ.',
     selectCommodity: 'വിള തിരഞ്ഞെടുക്കുക',
     allDistricts: 'എല്ലാ ജില്ലകളും',
@@ -145,7 +177,35 @@ export const dictionary = {
     requiredDocs: 'ആവശ്യമായ രേഖകൾ',
     authorityOffice: 'ബന്ധപ്പെടേണ്ട കൃഷിഭവൻ / ഓഫീസ്',
     claimInsuranceTitle: 'PMFBY ഡിജിറ്റൽ വിളനാശ ഇൻഷുറൻസ് രേഖ',
-    claimInsuranceDesc: 'ഇല സ്കാനിംഗിൽ കണ്ടെത്തിയ രോഗബാധയ്ക്ക് അടിയന്തരമായി PMFBY വിള ഇൻഷുറൻസ് ക്ലെയിം ചെയ്യാം.'
+    claimInsuranceDesc: 'ഇല സ്കാനിംഗിൽ കണ്ടെത്തിയ രോഗബാധയ്ക്ക് അടിയന്തരമായി PMFBY വിള ഇൻഷുറൻസ് ക്ലെയിം ചെയ്യാം.',
+
+    // Marketplace & 15% Commission terms
+    marketplaceTitle: 'ഫാക്ടറി നേരിട്ടുള്ള ബൾക്ക് ഇൻപുട്ട് മാർക്കറ്റ്',
+    marketplaceSubtitle: 'കർഷകർക്കും FPO-കൾക്കും ഇടനിലക്കാരില്ലാതെ ഫാക്ടറി നിരക്കിൽ ഉൽപ്പന്നങ്ങൾ. വെറും 15% പ്ലാറ്റ്‌ഫോം ഫീസ് മാത്രം നൽകിയാൽ 25% മുതൽ 35% വരെ തുക ലാഭിക്കാം.',
+    outsideMarketPrice: 'പുറത്തെ വിപണി വില',
+    factoryCost: 'ഫാക്ടറി നേരിട്ടുള്ള വില',
+    platformFee: 'AgriPulse ഫീസ് (15%)',
+    finalPrice: 'കർഷകൻ / FPO നൽകുന്ന തുക',
+    youSave: 'നിങ്ങൾക്ക് ലഭിക്കുന്ന ലാഭം',
+    buyBulkBtn: 'ബൾക്ക് ആയി വാങ്ങുക (Farmer / FPO)',
+    minOrder: 'കുറഞ്ഞ അളവ്',
+    inStock: 'ലഭ്യമായ അളവ്',
+    filterAll: 'എല്ലാ ഉൽപ്പന്നങ്ങളും',
+    filterBio: 'ജൈവ കുമിൾനാശിനികൾ',
+    filterSeeds: 'ഗുണമേന്മയുള്ള വിത്തുകൾ',
+    filterFertilizers: 'വളങ്ങളും ഡോളോമൈറ്റും',
+    filterEquipment: 'മെഷിനറികൾ & ഡ്രിപ്പ് കിറ്റുകൾ',
+    buyerTypeFarmer: 'വ്യക്തിഗത കർഷകൻ',
+    buyerTypeFpo: 'FPO / കാർഷിക സംഘം',
+    orderConfirmationTitle: 'ബൾക്ക് ഓർഡർ ഉറപ്പിച്ചു!',
+    orderConfirmationDesc: 'നിങ്ങളുടെ ഓർഡർ നിർമ്മാതാവിന് അയച്ചു നൽകിയിട്ടുണ്ട്. ഉടൻ ഡെലിവറി ചെയ്യപ്പെടും.',
+    totalCommunitySavings: 'കർഷകർക്ക് ലാഭിച്ച ആകെ തുക',
+    totalCommissionEarned: 'പ്ലാറ്റ്‌ഫോം 15% കമ്മീഷൻ',
+    leafValidationError: 'സാധുവായ ഇലയുടെ ചിത്രമല്ല (No Leaf Detected)',
+    leafValidationDesc: 'AgriPulse AI കാർഷിക വിളകളുടെ ഇലകളിലെ രോഗങ്ങൾ മാത്രമാണ് സ്കാൻ ചെയ്യുന്നത്. മനുഷ്യരുടെ ഫോട്ടോ, വാഹനങ്ങൾ, കടലാസുകൾ, മൃഗങ്ങൾ തുടങ്ങിയവ സ്കാൻ ചെയ്യാൻ സാധിക്കില്ല.',
+    testNonLeafBtn: 'ഇലയല്ലാത്ത ചിത്രം ടെസ്റ്റ് ചെയ്യുക (വാഹനം / അല്ലാത്തവ)',
+    nonLeafDetectedAs: 'തിരിച്ചറിഞ്ഞത്',
+    retryWithLeaf: 'ദയവായി വിളയുടെ ഇലയുടെ വ്യക്തമായ ഫോട്ടോ മാത്രം അപ്‌ലോഡ് ചെയ്യുക.'
   }
 };
 

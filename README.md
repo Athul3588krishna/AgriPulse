@@ -25,7 +25,7 @@ The platform provides a **voice-first, bilingual (Malayalam & English)** experie
 - **OpenCV Lesion Severity Analysis**: Quantifies damaged leaf area percentage using HSV segmentation.
 - **KAU / ICAR RAG Advisory**: Provides certified organic (Neem, *Trichoderma*) and chemical treatment dosages.
 
-### 3. 📈 Mandi Market Intelligence & Middleman Arbitrage
+### 3. 📈 Vipani Mitra (Mandi Market Intelligence & Middleman Arbitrage)
 - Real-time **APMC Mandi rates** across Kerala districts (Palakkad, Ernakulam, Thrissur, Wayanad, etc.).
 - **7-Day Price Forecast**: Trend projections to decide whether to sell immediately or hold in storage.
 - **Middleman Arbitrage Calculator**: Shows exact extra profit gained by selling directly to APMC markets.

@@ -4,7 +4,8 @@ import axios from 'axios';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useLanguage } from '../context/LanguageContext';
-import { Leaf, Upload, Volume2, VolumeX, Mic, MicOff, Download, CheckCircle, AlertTriangle, CloudSun, Shield, FileText, Sparkles, RefreshCw, Landmark, ArrowRight } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Leaf, Upload, Volume2, VolumeX, Mic, MicOff, Download, CheckCircle, AlertTriangle, CloudSun, Shield, FileText, Sparkles, RefreshCw, Landmark, ArrowRight, Zap, ShoppingBag, Star, Lock } from 'lucide-react';
 
 export const DiagnosisPage = () => {
   const { t, lang, speakText, stopSpeaking, isSpeaking, startListening, isListening } = useLanguage();
@@ -19,12 +20,130 @@ export const DiagnosisPage = () => {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [nonLeafError, setNonLeafError] = useState(null);
 
   const reportRef = useRef(null);
+  const { user } = useAuth();
+  const [quotaInfo, setQuotaInfo] = useState({ tier: user?.subscriptionTier || 'free', count: user?.monthlyScanCount || 0, limit: 5 });
+  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
 
   useEffect(() => {
     axios.get('/api/plots').then((res) => setPlots(res.data)).catch(() => {});
-  }, []);
+    if (user) {
+      axios.get('/api/subscription/status')
+        .then((res) => setQuotaInfo(res.data))
+        .catch(() => {});
+    }
+  }, [user]);
+
+  // Instant client-side inspection to catch ID cards, documents, faces, and non-leaf objects
+  const inspectImageClientSide = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 160;
+        const scale = Math.min(maxDim / img.width, maxDim / img.height, 1);
+        canvas.width = Math.max(1, Math.floor(img.width * scale));
+        canvas.height = Math.max(1, Math.floor(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        const totalPixels = data.length / 4;
+
+        let foliagePixels = 0;
+        let lowSatPixels = 0;
+        let skinPixels = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const delta = max - min;
+          let h = 0;
+          const s = max === 0 ? 0 : delta / max;
+          const v = max / 255;
+
+          if (delta !== 0) {
+            if (max === r) h = ((g - b) / delta) % 6;
+            else if (max === g) h = (b - r) / delta + 2;
+            else h = (r - g) / delta + 4;
+            h = Math.round(h * 60);
+            if (h < 0) h += 360;
+          }
+
+          // Green / foliage (50°-175°, s >= 0.22, v >= 0.20)
+          if (h >= 50 && h <= 175 && s >= 0.22 && v >= 0.20) {
+            foliagePixels++;
+          }
+          // Foliar chlorosis yellow (32°-50°, s >= 0.35, v >= 0.35)
+          else if (h >= 32 && h < 50 && s >= 0.35 && v >= 0.35) {
+            foliagePixels++;
+          }
+          // Necrotic brown lesion (10°-32°, s >= 0.28, v <= 0.75)
+          else if (h >= 10 && h < 32 && s >= 0.28 && v >= 0.20 && v <= 0.75) {
+            foliagePixels++;
+          }
+
+          // Low saturation (white paper, gray cards, screens)
+          if (s < 0.20) {
+            lowSatPixels++;
+          }
+
+          // Human skin tone in RGB: R > G > B
+          if (r > 95 && g > 40 && b > 20 && (max - min) > 15 && (r - g) > 12 && r > g && r > b) {
+            skinPixels++;
+          }
+        }
+
+        const foliageRatio = foliagePixels / totalPixels;
+        const lowSatRatio = lowSatPixels / totalPixels;
+        const skinRatio = skinPixels / totalPixels;
+
+        if (lowSatRatio > 0.45 && foliageRatio < 0.28) {
+          setNonLeafError({
+            detectedType: 'Document / ID Card / Paper',
+            message: lang === 'ml' 
+              ? 'ഡോക്യുമെന്റോ ഐഡി കാർഡോ പേപ്പറോ ആണ് കണ്ടെത്തിയത്. ദയവായി വിളകളുടെ ഇലയുടെ കളർ ഫോട്ടോ അപ്‌ലോഡ് ചെയ്യുക.'
+              : 'Document, ID card, or paper background detected. Please upload an agricultural crop leaf photo.'
+          });
+          return;
+        }
+
+        if (skinRatio > 0.30 && foliageRatio < 0.20) {
+          setNonLeafError({
+            detectedType: 'Human / Portrait',
+            message: lang === 'ml'
+              ? 'മനുഷ്യന്റെ മുഖമോ ശരീരമോ ആണ് കണ്ടത്. ദയവായി വിളകളുടെ ഇലയുടെ ഫോട്ടോ അപ്‌ലോഡ് ചെയ്യുക.'
+              : 'Human face or portrait detected. AgriPulse AI only scans crop leaves.'
+          });
+          return;
+        }
+
+        if (foliageRatio < 0.16) {
+          setNonLeafError({
+            detectedType: 'Non-Plant Object',
+            message: lang === 'ml'
+              ? 'ചെടിയുടെ ഇലയോ വിളയോ ഈ ചിത്രത്തിൽ കാണുന്നില്ല. വിളകളുടെ രോഗനിർണയത്തിനായി ഇലയുടെ വ്യക്തമായ ചിത്രം മാത്രം നൽകുക.'
+              : 'No plant leaf or agricultural crop detected. Only crop leaves can be analyzed for disease diagnosis.'
+          });
+          return;
+        }
+
+        // Image passed client-side leaf checks!
+        setNonLeafError(null);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleFileChange = (file) => {
     if (file) {
@@ -32,6 +151,8 @@ export const DiagnosisPage = () => {
       setImagePreview(URL.createObjectURL(file));
       setResult(null);
       setError('');
+      setNonLeafError(null);
+      inspectImageClientSide(file);
     }
   };
 
@@ -88,10 +209,61 @@ export const DiagnosisPage = () => {
     }, 'image/png');
   };
 
+  // Generate synthetic non-leaf image (blue metallic vehicle) for instant testing of rejection
+  const loadNonLeafSample = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 400;
+    const ctx = canvas.getContext('2d');
+
+    // Background dark garage
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 400, 400);
+
+    // Car body (metallic blue)
+    ctx.fillStyle = '#2563eb';
+    ctx.fillRect(50, 190, 300, 90);
+
+    // Car roof/cabin
+    ctx.fillStyle = '#1d4ed8';
+    ctx.fillRect(110, 110, 180, 80);
+
+    // Wheels
+    ctx.fillStyle = '#64748b';
+    ctx.beginPath();
+    ctx.arc(110, 280, 32, 0, 2 * Math.PI);
+    ctx.arc(290, 280, 32, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Wheel hubs
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.arc(110, 280, 14, 0, 2 * Math.PI);
+    ctx.arc(290, 280, 14, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Warning text on image
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('NON-LEAF VEHICLE SAMPLE', 200, 60);
+
+    canvas.toBlob((blob) => {
+      const file = new File([blob], 'sample_non_leaf_car.png', { type: 'image/png' });
+      handleFileChange(file);
+      setCropName('General');
+    }, 'image/png');
+  };
+
   const handleScanSubmit = async (e) => {
     e.preventDefault();
     if (!selectedFile) {
       setError('Please select or upload a leaf image first.');
+      return;
+    }
+
+    if (nonLeafError) {
+      setError(nonLeafError.message || (lang === 'ml' ? 'ഇലയല്ലാത്ത ചിത്രം സ്കാൻ ചെയ്യാൻ സാധിക്കില്ല.' : 'Cannot scan a non-leaf image.'));
       return;
     }
 
@@ -108,8 +280,31 @@ export const DiagnosisPage = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setResult(res.data);
+      if (res.data.quotaInfo) {
+        setQuotaInfo(prev => ({
+          ...prev,
+          tier: res.data.quotaInfo.tier,
+          count: res.data.quotaInfo.monthlyScanCount,
+          limit: res.data.quotaInfo.quotaLimit
+        }));
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Error executing leaf diagnosis.');
+      // Check if image was rejected because it is not a plant leaf
+      if (err.response?.status === 400 && (err.response?.data?.isLeaf === false || err.response?.data?.is_leaf === false)) {
+        setNonLeafError({
+          message: lang === 'ml' 
+            ? (err.response.data.message_ml || err.response.data.error_ml || err.response.data.message)
+            : (err.response.data.message || err.response.data.error),
+          detectedType: err.response.data.detectedType || err.response.data.detected_type || 'Non-Plant Image',
+          metrics: err.response.data.metrics
+        });
+        setError('');
+      } else if (err.response?.status === 403 || err.response?.data?.quotaReached) {
+        setQuotaModalOpen(true);
+        setError(err.response?.data?.message || 'Free monthly quota of 5 scans reached.');
+      } else {
+        setError(err.response?.data?.message || 'Error executing leaf diagnosis.');
+      }
     } finally {
       setLoading(false);
     }
@@ -169,6 +364,37 @@ export const DiagnosisPage = () => {
         <p className="text-xs text-slate-500">
           Upload a high-resolution photo of affected crop leaves for computer vision identification & RAG advisory.
         </p>
+      </div>
+
+      {/* Quota & Plan Status Banner */}
+      <div className="max-w-2xl mx-auto">
+        {(user?.subscriptionTier === 'pro' || user?.subscriptionTier === 'fpo' || quotaInfo.tier === 'pro' || quotaInfo.tier === 'fpo') ? (
+          <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-black shadow-sm">
+            <span className="flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
+              <span>AgriPulse Pro Active • Unlimited AI Diagnoses & Priority Agronomy</span>
+            </span>
+            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-md font-bold">UNLIMITED</span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold shadow-xs">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>
+                {lang === 'ml' 
+                  ? `സൗജന്യ പ്ലാൻ: ഈ മാസം ${quotaInfo.count || quotaInfo.monthlyScanCount || 0}/5 സ്കാനുകൾ ഉപയോഗിച്ചു`
+                  : `Free Tier: ${quotaInfo.count || quotaInfo.monthlyScanCount || 0}/5 monthly scans used`}
+              </span>
+            </span>
+            <Link 
+              to="/pricing" 
+              className="text-amber-800 font-black hover:text-amber-900 underline flex items-center gap-1"
+            >
+              <span>{lang === 'ml' ? 'പ്രോയിലേക്ക് മാറുക' : 'Upgrade to Pro'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Upload Form */}
@@ -251,6 +477,14 @@ export const DiagnosisPage = () => {
               >
                 <span>🌽 Corn Rust</span>
               </button>
+              <button
+                type="button"
+                onClick={loadNonLeafSample}
+                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95 flex items-center gap-1"
+                title={t('testNonLeafBtn')}
+              >
+                <span>🚫 {t('testNonLeafBtn')}</span>
+              </button>
             </div>
           </div>
 
@@ -261,7 +495,7 @@ export const DiagnosisPage = () => {
                 <img src={imagePreview} alt="Leaf Preview" className="max-h-56 mx-auto rounded-xl shadow-md border border-emerald-200" />
                 <button
                   type="button"
-                  onClick={() => { setSelectedFile(null); setImagePreview(null); }}
+                  onClick={() => { setSelectedFile(null); setImagePreview(null); setNonLeafError(null); }}
                   className="text-xs font-bold text-red-600 hover:underline"
                 >
                   Remove & Choose Another Photo
@@ -284,17 +518,64 @@ export const DiagnosisPage = () => {
             )}
           </div>
 
-          {error && <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl">{error}</div>}
+          {/* Non-Leaf Rejection Alert Banner */}
+          {nonLeafError && (
+            <div className="p-4 md:p-5 bg-gradient-to-br from-rose-50 via-amber-50 to-orange-50 border-2 border-rose-300 rounded-2xl shadow-sm text-slate-800 space-y-2">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 border border-rose-200 mt-0.5">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-black text-rose-900">
+                      {t('leafValidationError')}
+                    </h4>
+                    <span className="text-[10px] uppercase font-extrabold bg-rose-200 text-rose-900 px-2 py-0.5 rounded-md">
+                      {t('nonLeafDetectedAs')}: {nonLeafError.detectedType}
+                    </span>
+                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
+                      {lang === 'ml' ? 'ക്വാട്ട കുറച്ചിട്ടില്ല ✓' : 'Scan Quota Preserved ✓'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-rose-800 font-bold leading-relaxed">
+                    {nonLeafError.message}
+                  </p>
+                  <p className="text-[11px] text-slate-600">
+                    {t('leafValidationDesc')}
+                  </p>
+                  <div className="pt-1 flex items-center gap-2 text-[11px] text-emerald-800 font-semibold">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{t('retryWithLeaf')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {error && <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl font-bold">{error}</div>}
 
           <button
             type="submit"
-            disabled={loading || !selectedFile}
-            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-2xl text-sm shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            disabled={loading || !selectedFile || !!nonLeafError}
+            className={`w-full py-4 font-extrabold rounded-2xl text-sm shadow-lg transition-all disabled:opacity-60 flex items-center justify-center gap-2 ${
+              nonLeafError
+                ? 'bg-rose-600 text-white cursor-not-allowed shadow-rose-600/30'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30'
+            }`}
           >
             {loading ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin" />
                 <span>Running Computer Vision & RAG Advisory Engine...</span>
+              </>
+            ) : nonLeafError ? (
+              <>
+                <AlertTriangle className="w-5 h-5" />
+                <span>
+                  {lang === 'ml' 
+                    ? 'സാധുവായ ഇലയല്ല (സ്കാൻ ചെയ്യാൻ കഴിയില്ല)' 
+                    : 'Non-Leaf Image Detected (Upload a Plant Leaf)'}
+                </span>
               </>
             ) : (
               <>
@@ -458,8 +739,88 @@ export const DiagnosisPage = () => {
               </div>
             )}
 
+            {/* Cross-Sell: Wholesale Input Marketplace Banner */}
+            <div className="p-5 rounded-3xl bg-gradient-to-r from-teal-900 via-emerald-900 to-slate-900 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
+                  <ShoppingBag className="w-6 h-6 text-emerald-300" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider block">
+                    Direct Factory Input Marketplace • 15% Platform Fee
+                  </span>
+                  <h4 className="text-sm font-black text-white mt-0.5">
+                    {lang === 'ml' 
+                      ? 'ശുപാർശ ചെയ്ത ജൈവ കുമിൾനാശിനികൾ ഫാക്ടറി വിലയിൽ വാങ്ങൂ' 
+                      : 'Source Recommended Treatments at Direct Factory Wholesale Rates'}
+                  </h4>
+                  <p className="text-xs text-emerald-100/80 mt-1 max-w-xl">
+                    {lang === 'ml'
+                      ? 'ട്രൈക്കോഡെർമ വിരിഡെ, ശുദ്ധമായ വേപ്പെണ്ണ എന്നിവ റീട്ടെയിൽ വിലയേക്കാൾ 26% ലാഭത്തിൽ കർഷകർക്കും FPO-കൾക്കും ലഭ്യമാണ്.'
+                      : 'Trichoderma viride, cold-pressed neem formulations, and sprayers directly from certified manufacturers at 25%-35% below retail.'}
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to="/marketplace"
+                className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-md transition-all shrink-0 flex items-center gap-1.5"
+              >
+                <span>{lang === 'ml' ? 'മാർക്കറ്റിലേക്ക്' : 'Browse Wholesale Market'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
           </div>
 
+        </div>
+      )}
+
+      {/* Quota Exceeded Modal */}
+      {quotaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-md bg-white rounded-3xl p-7 shadow-2xl border border-amber-200 text-center space-y-5">
+            <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center">
+              <Lock className="w-8 h-8" />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-black text-slate-900">
+                {lang === 'ml' ? 'പ്രതിമാസ സൗജന്യ പരിധി കഴിഞ്ഞു!' : 'Monthly Free Scan Limit Reached!'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                {lang === 'ml'
+                  ? 'ഈ മാസത്തെ 5 സൗജന്യ സ്കാനുകൾ ഉപയോഗിച്ചു കഴിഞ്ഞു. അൺലിമിറ്റഡ് ഇല സ്കാനിംഗിനും 7-ഡേ മണ്ടി പ്രവചനങ്ങൾക്കുമായി കിസാൻ പ്രോ പ്ലാനിലേക്ക് മാറുക.'
+                  : 'You have used all 5 complimentary scans for this month. Upgrade to AgriPulse Pro for unlimited computer vision scans, OpenCV severity, and 7-day price forecasts.'}
+              </p>
+            </div>
+
+            <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 text-xs text-emerald-900 text-left space-y-1.5 font-medium">
+              <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>AgriPulse Pro Perks:</span>
+              </div>
+              <div>• Unlimited leaf disease scans</div>
+              <div>• 7-Day Mandi Price Prediction trends</div>
+              <div>• 1-Click official PMFBY Claim PDF</div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => setQuotaModalOpen(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Close
+              </button>
+              <Link
+                to="/pricing"
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-black shadow-md shadow-emerald-600/30 hover:shadow-lg transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>Upgrade (₹49/mo)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 

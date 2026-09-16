@@ -38,7 +38,10 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        language: user.language
+        language: user.language,
+        subscriptionTier: user.subscriptionTier || 'free',
+        monthlyScanCount: user.monthlyScanCount || 0,
+        subscriptionExpiresAt: user.subscriptionExpiresAt || null
       }
     });
   } catch (error) {
@@ -64,7 +67,9 @@ router.post('/login', async (req, res) => {
         role: email === 'admin@agripulse.in' ? 'admin' : 'farmer',
         language: 'ml',
         phone: '+91 94471 23456',
-        location: 'Palakkad, Kerala'
+        location: 'Palakkad, Kerala',
+        subscriptionTier: 'free',
+        monthlyScanCount: 0
       });
     }
 
@@ -86,11 +91,35 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        language: user.language
+        language: user.language,
+        subscriptionTier: user.subscriptionTier || 'free',
+        monthlyScanCount: user.monthlyScanCount || 0,
+        subscriptionExpiresAt: user.subscriptionExpiresAt || null
       }
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error during login', error: error.message });
+  }
+});
+
+// Get current user profile (with subscription)
+const { protect } = require('../middleware/authMiddleware');
+router.get('/me', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      language: user.language,
+      subscriptionTier: user.subscriptionTier || 'free',
+      monthlyScanCount: user.monthlyScanCount || 0,
+      subscriptionExpiresAt: user.subscriptionExpiresAt || null
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching profile', error: error.message });
   }
 });
 

@@ -23,7 +23,7 @@ export const Footer = () => {
           <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-3">Core AI Pillars</h4>
           <ul className="space-y-2 text-xs">
             <li className="flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5 text-emerald-400" /> Pre-Harvest Leaf Diagnostics & Severity</li>
-            <li className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Mandi Intelligence & 7-Day Forecast</li>
+            <li className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Vipani Mitra & 7-Day Forecast</li>
             <li className="flex items-center gap-1.5"><Landmark className="w-3.5 h-3.5 text-emerald-400" /> Autonomous Subsidy & PMFBY Navigator</li>
             <li className="flex items-center gap-1.5"><Mic className="w-3.5 h-3.5 text-emerald-400" /> Omnipresent Vernacular Voice AI</li>
           </ul>

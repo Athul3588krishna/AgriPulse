@@ -15,12 +15,39 @@ export const AuthProvider = ({ children }) => {
       if (savedUser) {
         setUser(JSON.parse(savedUser));
       }
+      // Sync fresh user data and subscription tier from server
+      axios.get('/api/auth/me')
+        .then((res) => {
+          setUser(res.data);
+          localStorage.setItem('agri_user', JSON.stringify(res.data));
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
     } else {
       delete axios.defaults.headers.common['Authorization'];
       setUser(null);
+      setLoading(false);
     }
-    setLoading(false);
   }, [token]);
+
+  const refreshUser = async () => {
+    try {
+      const res = await axios.get('/api/auth/me');
+      setUser(res.data);
+      localStorage.setItem('agri_user', JSON.stringify(res.data));
+      return res.data;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const updateUserSubscription = (subscriptionData) => {
+    setUser((prev) => {
+      const updated = { ...prev, ...subscriptionData };
+      localStorage.setItem('agri_user', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   const login = async (email, password) => {
     const res = await axios.post('/api/auth/login', { email, password });
@@ -50,7 +77,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, refreshUser, updateUserSubscription }}>
       {children}
     </AuthContext.Provider>
   );

@@ -12,6 +12,8 @@ const adminRoutes = require('./routes/adminRoutes');
 const mandiRoutes = require('./routes/mandiRoutes');
 const subsidyRoutes = require('./routes/subsidyRoutes');
 const agentRoutes = require('./routes/agentRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const marketplaceRoutes = require('./routes/marketplaceRoutes');
 
 const app = express();
 
@@ -32,6 +34,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/mandi', mandiRoutes);
 app.use('/api/subsidies', subsidyRoutes);
 app.use('/api/agent', agentRoutes);
+app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

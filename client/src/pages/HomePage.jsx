@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { WeatherWidget } from '../components/WeatherWidget';
+import { GlobeFpoCard } from '../components/GlobeFpoCard';
 import { 
   Leaf, Cpu, CloudSun, ShieldCheck, ArrowRight, Volume2, Globe, 
   Sparkles, TrendingUp, Landmark, Mic, DollarSign, Users, Award, Building2 
@@ -14,7 +15,7 @@ export const HomePage = () => {
     <div className="space-y-16 py-8">
       
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         <div className="lg:col-span-7 space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100/90 border border-emerald-300 text-emerald-950 text-xs font-black tracking-wide">
             <Sparkles className="w-4 h-4 text-emerald-600" />
@@ -25,7 +26,7 @@ export const HomePage = () => {
             {lang === 'ml' ? (
               <>കൃഷി രോഗനിർണ്ണയം, <span className="text-emerald-600 underline decoration-emerald-300">വിപണി വിലനിലവാരം</span>, സർക്കാർ സബ്‌സിഡികൾ</>
             ) : (
-              <>End-to-End <span className="text-emerald-600 underline decoration-emerald-300">Precision Agronomy</span>, Mandi Intelligence & Subsidies</>
+              <>End-to-End <span className="text-emerald-600 underline decoration-emerald-300">Precision Agronomy</span>, Vipani Mitra & Subsidies</>
             )}
           </h1>
 
@@ -77,11 +78,14 @@ export const HomePage = () => {
               <span>Weather Aware</span>
             </div>
           </div>
+
+          {/* Live Farm Weather in Left Column */}
+          <WeatherWidget />
         </div>
 
-        {/* Right Column: Live Weather & Omnipresent Voice AI Feature Showcase */}
+        {/* Right Column: 3D FPO Globe & Omnipresent Voice AI Feature Showcase */}
         <div className="lg:col-span-5 space-y-6">
-          <WeatherWidget />
+          <GlobeFpoCard />
 
           <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-200 rounded-3xl p-6 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
@@ -154,7 +158,7 @@ export const HomePage = () => {
                   Pillar 2 • Post-Harvest
                 </div>
                 <h3 className="font-extrabold text-slate-900 text-lg">
-                  Dynamic Market Intelligence & Mandi Optimization
+                  Vipani Mitra: Market Intelligence & Price Optimization
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
                   Real-time Agmarknet mandi rates, 7-day predictive volatility forecast models, and a Middleman Bypass Calculator that compares nearby markets and transport costs to maximize net farm revenue.
@@ -165,7 +169,7 @@ export const HomePage = () => {
                 to="/mandi"
                 className="inline-flex items-center gap-1 text-xs font-black text-teal-600 hover:text-teal-700 pt-3 border-t border-slate-100"
               >
-                <span>Explore Mandi Rates</span>
+                <span>Explore Vipani Mitra</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>

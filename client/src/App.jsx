@@ -17,6 +17,8 @@ import { HistoryPage } from './pages/HistoryPage';
 import { AdminPage } from './pages/AdminPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { MarketplacePage } from './pages/MarketplacePage';
+import { PricingPage } from './pages/PricingPage';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -44,6 +46,8 @@ export default function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/mandi" element={<MandiPage />} />
                 <Route path="/subsidies" element={<SubsidyPage />} />
+                <Route path="/marketplace" element={<MarketplacePage />} />
+                <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 

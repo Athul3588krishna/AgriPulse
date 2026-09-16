@@ -18,7 +18,7 @@ PLANTVILLAGE_CLASSES = [
     "Tomato___Bacterial_spot", "Tomato___Early_blight", "Tomato___Late_blight",
     "Tomato___Leaf_Mold", "Tomato___Septoria_leaf_spot", "Tomato___Spider_mites Two-spotted_spider_mite",
     "Tomato___Target_Spot", "Tomato___Tomato_Yellow_Leaf_Curl_Virus", "Tomato___Tomato_mosaic_virus",
-    "Tomato___healthy"
+    "Tomato___healthy", "Background_without_leaves"
 ]
 
 # Friendly display names mapping
@@ -67,13 +67,21 @@ def _init_torch_model():
             print(f"-> Loading custom trained model weights from '{model_path}'...")
             model = models.mobilenet_v3_large()
             in_features = model.classifier[3].in_features
-            model.classifier[3] = torch.nn.Sequential(
-                torch.nn.Linear(in_features, 256),
-                torch.nn.ReLU(),
-                torch.nn.Dropout(0.3),
-                torch.nn.Linear(256, len(PLANTVILLAGE_CLASSES))
-            )
-            model.load_state_dict(torch.load(model_path, map_location=device))
+            raw_weights = torch.load(model_path, map_location=device, weights_only=False)
+            sd = raw_weights.get("model_state_dict", raw_weights) if isinstance(raw_weights, dict) else raw_weights
+            
+            out_features = 39 if ("classifier.3.weight" in sd and sd["classifier.3.weight"].shape[0] == 39) else len(PLANTVILLAGE_CLASSES)
+            model.classifier[3] = torch.nn.Linear(in_features, out_features)
+            try:
+                model.load_state_dict(sd)
+            except Exception:
+                model.classifier[3] = torch.nn.Sequential(
+                    torch.nn.Linear(in_features, 256),
+                    torch.nn.ReLU(),
+                    torch.nn.Dropout(0.3),
+                    torch.nn.Linear(256, len(PLANTVILLAGE_CLASSES))
+                )
+                model.load_state_dict(sd)
         else:
             print("-> Loading pre-trained MobileNetV3 deep learning feature extractor...")
             model = models.mobilenet_v3_large(weights=models.MobileNet_V3_Large_Weights.DEFAULT)

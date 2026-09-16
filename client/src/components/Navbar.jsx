@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Leaf, User, LogOut, Globe, Shield, Activity, TrendingUp, Landmark, Layers } from 'lucide-react';
+import { Leaf, User, LogOut, Globe, Shield, Activity, TrendingUp, Landmark, Layers, ShoppingBag, Zap, Star } from 'lucide-react';
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
@@ -31,7 +31,7 @@ export const Navbar = () => {
               AgriMitra <span className="text-emerald-600 font-extrabold text-xs px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300">360 AI</span>
             </span>
             <span className="block text-[9px] text-slate-400 font-bold tracking-wider uppercase">
-              Precision Agronomy • Mandi • Subsidies
+              Precision Agronomy • Vipani Mitra • Subsidies
             </span>
           </div>
         </Link>
@@ -59,6 +59,25 @@ export const Navbar = () => {
           >
             <Landmark className="w-3.5 h-3.5 text-blue-600" />
             {t('subsidies')}
+          </Link>
+
+          <Link 
+            to="/marketplace" 
+            className={`flex items-center gap-1 transition-colors hover:text-teal-600 ${isActive('/marketplace') ? 'text-teal-600 font-extrabold' : ''}`}
+          >
+            <ShoppingBag className="w-3.5 h-3.5 text-teal-600" />
+            <span>{t('marketplace')}</span>
+            <span className="text-[9px] bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded-full">
+              -26%
+            </span>
+          </Link>
+
+          <Link 
+            to="/pricing" 
+            className={`flex items-center gap-1 transition-colors hover:text-amber-600 ${isActive('/pricing') ? 'text-amber-600 font-extrabold' : ''}`}
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-500" />
+            <span>{t('pricing')}</span>
           </Link>
 
           {user && (
@@ -116,9 +135,17 @@ export const Navbar = () => {
 
           {user ? (
             <div className="flex items-center space-x-2">
-              <span className="text-xs font-semibold text-slate-600 hidden sm:inline-block bg-slate-100 px-2.5 py-1 rounded-md">
-                {user.name} ({user.role})
-              </span>
+              <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700">
+                <span>{user.name}</span>
+                {(user.subscriptionTier === 'pro' || user.subscriptionTier === 'fpo') ? (
+                  <span className="bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded-full shadow-xs flex items-center gap-0.5">
+                    <Star className="w-2.5 h-2.5 fill-slate-950" />
+                    PRO
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-500">({user.role})</span>
+                )}
+              </div>
               <button
                 onClick={handleLogout}
                 className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

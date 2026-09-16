@@ -5,7 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const Diagnosis = require('../models/Diagnosis');
+const User = require('../models/User');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
+const { validateUploadedLeaf } = require('../services/leafValidatorService');
 
 // Storage config for uploaded leaf images
 const storage = multer.diskStorage({
@@ -38,6 +40,50 @@ router.post('/scan', optionalProtect, upload.single('image'), async (req, res) =
     const { cropName, plotId, latitude, longitude } = req.body;
     const imagePath = req.file.path;
     const imageUrl = `/uploads/${req.file.filename}`;
+
+    // Validate that the image contains an agricultural plant leaf
+    const leafValidation = await validateUploadedLeaf(imagePath, AI_SERVICE_URL);
+    if (!leafValidation.is_leaf) {
+      try {
+        if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+      } catch (e) {}
+
+      return res.status(400).json({
+        success: false,
+        isLeaf: false,
+        message: leafValidation.reason || 'Invalid image: No plant leaf detected. Please upload a clear photo of an agricultural crop leaf.',
+        message_ml: leafValidation.reason_ml || 'സാധുവായ ഇലയുടെ ചിത്രമല്ല. ദയവായി വിളകളുടെ ഇലയുടെ വ്യക്തമായ ചിത്രം അപ്‌ലോഡ് ചെയ്യുക.',
+        detectedType: leafValidation.detected_type || 'Non-Plant Object',
+        metrics: leafValidation.metrics || {}
+      });
+    }
+
+    // Check Subscription Quota if user is authenticated
+    let userDoc = null;
+    if (req.user && req.user.id) {
+      userDoc = await User.findById(req.user.id);
+      if (userDoc) {
+        // Auto-reset if 30 days passed
+        const now = new Date();
+        const lastReset = userDoc.lastScanResetDate ? new Date(userDoc.lastScanResetDate) : new Date(0);
+        if ((now - lastReset) / (1000 * 60 * 60 * 24) >= 30) {
+          userDoc.monthlyScanCount = 0;
+          userDoc.lastScanResetDate = now;
+          await userDoc.save();
+        }
+
+        const isPro = userDoc.subscriptionTier === 'pro' || userDoc.subscriptionTier === 'fpo';
+        if (!isPro && (userDoc.monthlyScanCount || 0) >= 5) {
+          return res.status(403).json({
+            message: 'Monthly Free Plan quota reached (5/5 scans used). Upgrade to AgriPulse Pro for unlimited AI leaf diagnoses and 7-day price forecasts!',
+            quotaReached: true,
+            tier: userDoc.subscriptionTier,
+            monthlyScanCount: userDoc.monthlyScanCount,
+            quotaLimit: 5
+          });
+        }
+      }
+    }
 
     // Call Weather route logic internally or fetch weather
     let weatherInfo = {
@@ -141,6 +187,12 @@ router.post('/scan', optionalProtect, upload.single('image'), async (req, res) =
       }
     }
 
+    // Update scan usage count for user
+    if (userDoc) {
+      userDoc.monthlyScanCount = (userDoc.monthlyScanCount || 0) + 1;
+      await userDoc.save();
+    }
+
     res.status(201).json({
       success: true,
       diagnosisId: diagnosis ? diagnosis._id : 'guest_demo_' + Date.now(),
@@ -152,10 +204,31 @@ router.post('/scan', optionalProtect, upload.single('image'), async (req, res) =
       severityLevel: aiResponse.severity_level,
       weatherContext: weatherInfo,
       advisory: aiResponse.advisory,
-      sources: aiResponse.sources
+      sources: aiResponse.sources,
+      quotaInfo: {
+        tier: userDoc ? userDoc.subscriptionTier : 'guest',
+        monthlyScanCount: userDoc ? userDoc.monthlyScanCount : 1,
+        quotaLimit: userDoc && (userDoc.subscriptionTier === 'pro' || userDoc.subscriptionTier === 'fpo') ? 'unlimited' : 5
+      }
     });
   } catch (error) {
     res.status(500).json({ message: 'Error processing scan', error: error.message });
+  }
+});
+
+// Quick leaf validation endpoint (does not save diagnosis or consume quota)
+router.post('/validate', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ is_leaf: false, reason: 'No file uploaded', detected_type: 'No File' });
+    }
+    const result = await validateUploadedLeaf(req.file.path, AI_SERVICE_URL);
+    try {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    } catch (e) {}
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ is_leaf: false, reason: err.message, detected_type: 'Error' });
   }
 });
 
